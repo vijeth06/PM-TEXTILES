@@ -82,15 +82,24 @@ npm install jspdf jspdf-autotable xlsx file-saver html2canvas
 ```
 
 #### Step 3: Configure Environment
+Copy `backend/.env.example` to `backend/.env` and update values for your machine.
+
 Create `.env` file in backend directory:
 ```env
 MONGODB_URI=mongodb://localhost:27017/pm_textiles_erp
-PORT=5000
+PORT=5055
 JWT_SECRET=your_secret_key_here
 JWT_EXPIRE=30d
 NODE_ENV=development
 ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+Create `.env` file in frontend directory (or copy `frontend/.env.example` → `frontend/.env`):
+```env
+REACT_APP_SERVER_URL=http://localhost:5055
+```
+
+⚠️ Do not commit `.env` files (they contain secrets). Rotate any leaked DB credentials / JWT secrets.
 
 #### Step 4: Start MongoDB
 ```bash
@@ -112,15 +121,22 @@ npm start
 ### 🌐 Access the Application
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **Health Check**: http://localhost:5000/api/health
+- **Backend API**: http://localhost:5001
+- **Health Check**: http://localhost:5001/api/health
 
 ### 🔐 Default Login
 ```
 Username: admin
 Password: Admin@123
 ```
+Login supports **username or email**.
 ⚠️ **Change password immediately after first login via Settings → Change Password**
+
+If you need to (re)create the default admin user, run:
+```bash
+node backend/seedUser.js
+```
+This uses `DEFAULT_ADMIN_USERNAME`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD` from `backend/.env`.
 
 ## 📁 Project Structure
 

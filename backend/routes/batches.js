@@ -7,14 +7,14 @@ router.use(protect);
 
 router.route('/')
   .get(batchController.getBatches)
-  .post(authorize('admin', 'manager', 'production'), batchController.createBatch);
+  .post(authorize('admin', 'management', 'production_manager'), batchController.createBatch);
 
 router.route('/:id')
   .get(batchController.getBatch)
-  .put(authorize('admin', 'manager', 'production'), batchController.updateBatch);
+  .put(authorize('admin', 'management', 'production_manager'), batchController.updateBatch);
 
 router.put('/:id/quality-check', 
-  authorize('admin', 'manager', 'quality'),
+  authorize('admin', 'management', 'qa_inspector'),
   batchController.performQualityCheck
 );
 

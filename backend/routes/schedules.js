@@ -7,12 +7,12 @@ router.use(protect);
 
 router.route('/')
   .get(scheduleController.getSchedules)
-  .post(authorize('admin', 'manager'), scheduleController.createSchedule);
+  .post(authorize('admin', 'management'), scheduleController.createSchedule);
 
 router.route('/:id')
   .get(scheduleController.getSchedule)
-  .put(authorize('admin', 'manager'), scheduleController.updateSchedule)
-  .delete(authorize('admin', 'manager'), scheduleController.deleteSchedule);
+  .put(authorize('admin', 'management'), scheduleController.updateSchedule)
+  .delete(authorize('admin', 'management'), scheduleController.deleteSchedule);
 
 router.get('/upcoming', scheduleController.getUpcomingSchedules);
 

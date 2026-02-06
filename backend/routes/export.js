@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
+const { protect, checkPermission } = require('../middleware/auth');
 const { 
   exportInventoryToExcel, 
   exportOrdersToExcel, 
@@ -17,7 +17,7 @@ const fs = require('fs');
 router.use(protect);
 
 // Export inventory to Excel
-router.get('/inventory/excel', authorize('admin', 'manager'), async (req, res) => {
+router.get('/inventory/excel', checkPermission('view_reports'), async (req, res) => {
   try {
     const inventory = await Inventory.find().lean();
     const filePath = path.join(__dirname, '../exports', `inventory_${Date.now()}.xlsx`);
@@ -41,7 +41,7 @@ router.get('/inventory/excel', authorize('admin', 'manager'), async (req, res) =
 });
 
 // Export orders to Excel
-router.get('/orders/excel', authorize('admin', 'manager'), async (req, res) => {
+router.get('/orders/excel', checkPermission('view_reports'), async (req, res) => {
   try {
     const orders = await Order.find()
       .populate('customer', 'name')
@@ -73,7 +73,7 @@ router.get('/orders/excel', authorize('admin', 'manager'), async (req, res) => {
 });
 
 // Export production to Excel
-router.get('/production/excel', authorize('admin', 'manager'), async (req, res) => {
+router.get('/production/excel', checkPermission('view_reports'), async (req, res) => {
   try {
     const production = await ProductionPlan.find()
       .populate('product', 'name')

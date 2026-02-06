@@ -2,6 +2,7 @@ const Inventory = require('../models/Inventory');
 const RawMaterial = require('../models/RawMaterial');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const { broadcastToAll, emitToRole } = require('../services/socketService');
+const { v4: uuidv4 } = require('uuid');
 
 // Purchase Order Controllers
 const {
@@ -185,6 +186,7 @@ exports.receiveMaterial = async (req, res, next) => {
       itemCode,
       itemName,
       batchNo,
+      barcode,
       quantity,
       uom,
       costPerUnit,
@@ -203,12 +205,37 @@ exports.receiveMaterial = async (req, res, next) => {
       });
     }
 
+    // Barcode supports BOTH:
+    // - manual entry (if provided)
+    // - auto-generation (if not provided)
+    let resolvedBarcode = barcode ? String(barcode).trim() : '';
+    if (!resolvedBarcode) {
+      const normalizedItemCode = String(itemCode || '').trim().toUpperCase();
+      const normalizedBatchNo = String(batchNo || '').trim().toUpperCase();
+      resolvedBarcode = `BATCH-${normalizedItemCode}-${normalizedBatchNo}`;
+
+      // Ensure uniqueness even in edge cases
+      const exists = await Inventory.findOne({ barcode: resolvedBarcode }).select('_id');
+      if (exists) {
+        resolvedBarcode = `${resolvedBarcode}-${uuidv4().slice(0, 8).toUpperCase()}`;
+      }
+    } else {
+      const barcodeExists = await Inventory.findOne({ barcode: resolvedBarcode }).select('_id');
+      if (barcodeExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Barcode already exists for another batch'
+        });
+      }
+    }
+
     const inventory = await Inventory.create({
       itemId,
       itemType,
       itemCode,
       itemName,
       batchNo,
+      barcode: resolvedBarcode,
       qtyOnHand: quantity,
       qtyAvailable: quantity,
       uom,
@@ -227,6 +254,7 @@ exports.receiveMaterial = async (req, res, next) => {
       type: 'material_received',
       itemCode,
       batchNo,
+      barcode: resolvedBarcode,
       quantity,
       timestamp: new Date()
     });
@@ -235,6 +263,62 @@ exports.receiveMaterial = async (req, res, next) => {
       success: true,
       message: 'Material received successfully',
       data: inventory
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Lookup inventory batch by barcode (primary) or batchNo (secondary)
+// @route   GET /api/inventory/lookup?code=...
+// @access  Private
+exports.lookupInventoryBatch = async (req, res, next) => {
+  try {
+    const code = String(req.query.code || '').trim();
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query param "code" is required'
+      });
+    }
+
+    // 1) Best: exact barcode match
+    let batch = await Inventory.findOne({ barcode: code })
+      .populate('itemId')
+      .populate('supplierId', 'name code');
+
+    if (batch) {
+      return res.json({ success: true, data: batch, match: 'barcode' });
+    }
+
+    // 2) Optional fallback: batchNo
+    const normalizedBatchNo = code.toUpperCase();
+    const candidates = await Inventory.find({ batchNo: normalizedBatchNo })
+      .limit(2)
+      .populate('itemId')
+      .populate('supplierId', 'name code');
+
+    if (candidates.length === 1) {
+      return res.json({ success: true, data: candidates[0], match: 'batchNo' });
+    }
+
+    if (candidates.length > 1) {
+      return res.status(409).json({
+        success: false,
+        message: 'Batch number is not unique. Please scan the batch barcode instead.',
+        data: candidates.map(b => ({
+          _id: b._id,
+          itemCode: b.itemCode,
+          itemName: b.itemName,
+          batchNo: b.batchNo,
+          barcode: b.barcode
+        }))
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: 'Batch not found'
     });
   } catch (error) {
     next(error);

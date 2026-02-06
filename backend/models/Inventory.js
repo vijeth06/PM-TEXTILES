@@ -27,6 +27,13 @@ const inventorySchema = new mongoose.Schema({
     trim: true,
     uppercase: true
   },
+  barcode: {
+    type: String,
+    trim: true,
+    // Optional (manual) or auto-generated. Unique when present.
+    unique: true,
+    sparse: true
+  },
   qtyOnHand: {
     type: Number,
     required: true,

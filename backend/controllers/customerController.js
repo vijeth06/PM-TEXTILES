@@ -80,7 +80,7 @@ exports.createCustomer = async (req, res, next) => {
     });
 
     // Emit real-time event
-    emitToRole('sales', 'customer_created', {
+    emitToRole('sales_executive', 'customer_created', {
       code: customer.code,
       name: customer.name,
       type: customer.type,

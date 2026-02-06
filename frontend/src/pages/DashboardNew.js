@@ -19,6 +19,8 @@ const DashboardNew = () => {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [productionTrendData, setProductionTrendData] = useState([]);
+  const [inventoryTrendData, setInventoryTrendData] = useState([]);
 
   useEffect(() => {
     fetchMetrics();
@@ -38,8 +40,26 @@ const DashboardNew = () => {
   const fetchMetrics = async () => {
     try {
       setLoading(true);
-      const response = await dashboardAPI.getMetrics();
-      setMetrics(response.data.data);
+      const [metricsRes, trendsRes, inventoryTrendRes] = await Promise.all([
+        dashboardAPI.getMetrics(),
+        dashboardAPI.getTrends({ period: '7days' }),
+        dashboardAPI.getInventoryValueTrend({ months: 7 })
+      ]);
+      setMetrics(metricsRes.data.data);
+
+      const trends = trendsRes.data.data;
+      const productionTrend = (trends.productionTrend || []).map(p => ({
+        date: p._id,
+        production: p.completed || 0,
+        target: p.planned || 0
+      }));
+      setProductionTrendData(productionTrend);
+
+      const invTrend = (inventoryTrendRes.data.data || []).map(t => ({
+        month: t.month,
+        value: Math.round((t.totalValue || 0) / 1000)
+      }));
+      setInventoryTrendData(invTrend);
     } catch (error) {
       toast.error('Failed to fetch dashboard metrics');
     } finally {
@@ -72,26 +92,20 @@ const DashboardNew = () => {
     { name: 'Under Maintenance', value: metrics?.machines?.underMaintenance || 0, fill: '#EF4444' }
   ];
 
-  // Trend data (mock - would come from API)
-  const productionTrendData = [
-    { date: 'Mon', production: 450, target: 500 },
-    { date: 'Tue', production: 480, target: 500 },
-    { date: 'Wed', production: 520, target: 500 },
-    { date: 'Thu', production: 490, target: 500 },
-    { date: 'Fri', production: 510, target: 500 },
-    { date: 'Sat', production: 470, target: 500 },
-    { date: 'Sun', production: 400, target: 500 }
-  ];
+  const displayDate = (yyyyMmDd) => {
+    try {
+      return new Date(yyyyMmDd).toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+    } catch {
+      return yyyyMmDd;
+    }
+  };
 
-  const inventoryTrendData = [
-    { month: 'Jul', value: 850 },
-    { month: 'Aug', value: 920 },
-    { month: 'Sep', value: 780 },
-    { month: 'Oct', value: 890 },
-    { month: 'Nov', value: 950 },
-    { month: 'Dec', value: 880 },
-    { month: 'Jan', value: 910 }
-  ];
+  const displayMonth = (yyyyMm) => {
+    const [yyyy, mm] = String(yyyyMm).split('-');
+    if (!yyyy || !mm) return yyyyMm;
+    const date = new Date(Number(yyyy), Number(mm) - 1, 1);
+    return date.toLocaleDateString(undefined, { month: 'short' });
+  };
 
   return (
     <div className="space-y-6">
@@ -186,7 +200,7 @@ const DashboardNew = () => {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="date" tickFormatter={displayDate} />
               <YAxis />
               <Tooltip />
               <Legend />
@@ -294,7 +308,7 @@ const DashboardNew = () => {
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={inventoryTrendData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
+              <XAxis dataKey="month" tickFormatter={displayMonth} />
               <YAxis />
               <Tooltip />
               <Legend />

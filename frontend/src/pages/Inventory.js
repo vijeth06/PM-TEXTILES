@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { inventoryAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { useInventoryUpdates } from '../hooks/useRealTimeUpdates';
-import { PlusIcon, ArrowUpIcon, ArrowDownIcon, AdjustmentsHorizontalIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Alert, Pagination } from '../components/common';
+import { PlusIcon, ArrowUpIcon, ArrowDownIcon, AdjustmentsHorizontalIcon, ExclamationTriangleIcon, QrCodeIcon } from '@heroicons/react/24/outline';
+import { Card, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Alert, Pagination } from '../components/common';
+import ExportButton from '../components/ExportButton';
+import BarcodeScanner from '../components/BarcodeScanner';
+import QRCodeGenerator from '../components/QRCodeGenerator';
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -14,6 +17,37 @@ const Inventory = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [filters, setFilters] = useState({ itemType: '', status: '', location: '' });
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
+  const [showScanner, setShowScanner] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+
+  const fetchInventory = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await inventoryAPI.getInventory({
+        ...filters,
+        page: pagination.currentPage,
+        limit: 10
+      });
+      setInventory(response.data.data);
+      setPagination({
+        currentPage: response.data.currentPage || 1,
+        totalPages: response.data.totalPages || 1
+      });
+    } catch (error) {
+      toast.error('Failed to fetch inventory');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, pagination.currentPage]);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const response = await inventoryAPI.getAlerts();
+      setAlerts(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch alerts');
+    }
+  }, []);
 
   // Real-time inventory updates
   useInventoryUpdates((data) => {
@@ -39,36 +73,7 @@ const Inventory = () => {
   useEffect(() => {
     fetchInventory();
     fetchAlerts();
-  }, [filters, pagination.currentPage]);
-
-  const fetchInventory = async () => {
-    try {
-      setLoading(true);
-      const response = await inventoryAPI.getInventory({ 
-        ...filters, 
-        page: pagination.currentPage,
-        limit: 10 
-      });
-      setInventory(response.data.data);
-      setPagination({
-        currentPage: response.data.currentPage || 1,
-        totalPages: response.data.totalPages || 1
-      });
-    } catch (error) {
-      toast.error('Failed to fetch inventory');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAlerts = async () => {
-    try {
-      const response = await inventoryAPI.getAlerts();
-      setAlerts(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch alerts');
-    }
-  };
+  }, [fetchInventory, fetchAlerts]);
 
   const handleIssue = (item) => {
     setSelectedItem(item);
@@ -107,12 +112,66 @@ const Inventory = () => {
           <p className="text-gray-600 mt-1">Track and manage stock levels with FIFO</p>
         </div>
         <div className="flex space-x-3">
+          <ExportButton 
+            endpoint="/export/inventory/excel"
+            filename="inventory"
+            label="Export Excel"
+            format="excel"
+          />
+          <Button onClick={() => setShowScanner(true)} variant="secondary" className="flex items-center">
+            <QrCodeIcon className="h-5 w-5 mr-2" />
+            Scan Barcode
+          </Button>
           <Button onClick={handleReceive} variant="success" className="flex items-center">
             <ArrowDownIcon className="h-5 w-5 mr-2" />
             Receive Material
           </Button>
         </div>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <BarcodeScanner
+          onScan={async (code) => {
+            try {
+              console.log('Scanned code:', code);
+              const response = await inventoryAPI.lookupBatch(code);
+              const batch = response.data.data;
+              setSelectedItem(batch);
+              setShowQRCode(true);
+            } catch (error) {
+              const message = error?.response?.data?.message || 'Batch not found with this barcode';
+              toast.error(message);
+            } finally {
+              setShowScanner(false);
+            }
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      {/* QR Code Display Modal */}
+      {showQRCode && selectedItem && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Item QR Code</h3>
+              <button onClick={() => setShowQRCode(false)} className="text-gray-400 hover:text-gray-600">
+                ×
+              </button>
+            </div>
+            <QRCodeGenerator
+              data={JSON.stringify({
+                itemCode: selectedItem.itemCode,
+                itemName: selectedItem.itemName,
+                quantity: selectedItem.qtyAvailable,
+                location: selectedItem.location
+              })}
+              label={selectedItem.itemName}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Alerts */}
       {alerts.length > 0 && (

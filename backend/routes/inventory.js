@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getInventory,
   getInventoryItem,
+  lookupInventoryBatch,
   issueMaterial,
   receiveMaterial,
   adjustInventory,
@@ -23,6 +24,7 @@ router.use(protect);
 
 // Inventory routes
 router.get('/', checkPermission('view_inventory'), getInventory);
+router.get('/lookup', checkPermission('view_inventory'), lookupInventoryBatch);
 router.get('/alerts', checkPermission('view_inventory'), getReorderAlerts);
 router.get('/:id', checkPermission('view_inventory'), idValidation, validate, getInventoryItem);
 router.get('/:id/history', checkPermission('view_inventory'), getBatchHistory);

@@ -6,6 +6,7 @@ const Inventory = require('../models/Inventory');
 const ProductionStage = require('../models/ProductionStage');
 const Wastage = require('../models/Wastage');
 const { broadcastToAll, emitToUser, emitToRole } = require('../services/socketService');
+const { sendEmail, emailTemplates } = require('../services/emailService');
 
 // @desc    Get all orders
 // @route   GET /api/orders
@@ -156,6 +157,29 @@ exports.createOrder = async (req, res, next) => {
       priority: order.priority,
       timestamp: new Date()
     });
+
+    // Send email notification to customer
+    if (customer.email) {
+      try {
+        const emailContent = emailTemplates.orderConfirmation(
+          {
+            orderNumber: order.orderNo,
+            orderDate: order.createdAt,
+            totalAmount: order.totalValue,
+            status: order.status
+          },
+          customer
+        );
+        await sendEmail({
+          to: customer.email,
+          subject: emailContent.subject,
+          html: emailContent.html
+        });
+      } catch (emailError) {
+        console.error('Failed to send order confirmation email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
 
     // Check inventory availability
     for (const item of items) {

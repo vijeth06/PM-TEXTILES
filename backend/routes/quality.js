@@ -7,11 +7,11 @@ router.use(protect);
 
 router.route('/')
   .get(qualityController.getQualityChecks)
-  .post(authorize('admin', 'manager', 'quality'), qualityController.createQualityCheck);
+  .post(authorize('admin', 'management', 'qa_inspector'), qualityController.createQualityCheck);
 
 router.route('/:id')
   .get(qualityController.getQualityCheck)
-  .put(authorize('admin', 'manager', 'quality'), qualityController.updateQualityCheck);
+  .put(authorize('admin', 'management', 'qa_inspector'), qualityController.updateQualityCheck);
 
 router.get('/statistics', qualityController.getQualityStatistics);
 

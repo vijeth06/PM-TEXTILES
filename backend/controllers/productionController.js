@@ -256,7 +256,7 @@ exports.updateProductionStage = async (req, res, next) => {
     });
 
     // Notify production team
-    emitToRole('production', 'stage_progress', {
+    emitToRole('production_manager', 'stage_progress', {
       planNo: stage.planNo,
       stageName: stage.stageName,
       completionPercent,

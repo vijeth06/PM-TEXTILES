@@ -90,7 +90,7 @@ exports.createQualityCheck = async (req, res) => {
 
     // Notify QA team if failed
     if (result === 'failed') {
-      emitToRole('qa', 'quality_check_failed', {
+      emitToRole('qa_inspector', 'quality_check_failed', {
         type,
         batchId: batch,
         defects,
@@ -107,7 +107,7 @@ exports.createQualityCheck = async (req, res) => {
 
     // Notify QA team if failed
     if (result === 'failed') {
-      emitToRole('qa', 'quality_check_failed', {
+      emitToRole('qa_inspector', 'quality_check_failed', {
         type,
         batchId: batch,
         defects,

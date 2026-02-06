@@ -1,9 +1,10 @@
 const schedule = require('node-schedule');
 const Inventory = require('../models/Inventory');
+const RawMaterial = require('../models/RawMaterial');
 const Schedule = require('../models/Schedule');
 const Order = require('../models/Order');
 const { sendEmail, emailTemplates } = require('./emailService');
-const { emitToRole, broadcastToAll } = require('./socketService');
+const { emitToRole, emitToUser } = require('./socketService');
 const User = require('../models/User');
 
 // Check for low stock and send alerts
@@ -11,10 +12,32 @@ const checkLowStock = schedule.scheduleJob('0 9 * * *', async () => {
   // Runs daily at 9 AM
   try {
     console.log('Running low stock check...');
-    
-    const lowStockItems = await Inventory.find({
-      $expr: { $lte: ['$currentStock', '$minStockLevel'] }
-    });
+
+    const materials = await RawMaterial.find({
+      reorderPoint: { $gt: 0 },
+      isActive: true
+    }).lean();
+
+    const lowStockItems = [];
+
+    for (const material of materials) {
+      const stockRecords = await Inventory.find({
+        itemCode: material.code,
+        status: { $in: ['available', 'reserved'] }
+      }).lean();
+
+      const currentStock = stockRecords.reduce((sum, record) => sum + (record.qtyAvailable || 0), 0);
+
+      if (currentStock <= material.reorderPoint) {
+        lowStockItems.push({
+          code: material.code,
+          name: material.name,
+          currentStock,
+          minLevel: material.reorderPoint,
+          uom: material.uom
+        });
+      }
+    }
 
     if (lowStockItems.length > 0) {
       // Get admin and manager emails
@@ -68,7 +91,7 @@ const checkUpcomingSchedules = schedule.scheduleJob('*/30 * * * *', async () => 
       scheduledDate: { $gte: now, $lte: upcomingTime },
       status: { $in: ['pending', 'in_progress'] },
       reminderSent: false
-    }).populate('assignedTo', 'name email');
+    }).populate('assignedTo', 'fullName email');
 
     for (const scheduleItem of upcomingSchedules) {
       // Send notifications to assigned users
@@ -80,7 +103,7 @@ const checkUpcomingSchedules = schedule.scheduleJob('*/30 * * * *', async () => 
             subject: `Reminder: ${scheduleItem.title}`,
             html: `
               <h2>Upcoming Schedule Reminder</h2>
-              <p>Hi ${user.name},</p>
+              <p>Hi ${user.fullName || user.username || 'User'},</p>
               <p>This is a reminder for your scheduled task:</p>
               <p><strong>${scheduleItem.title}</strong></p>
               <p>Scheduled for: ${scheduleItem.scheduledDate.toLocaleString()}</p>
@@ -115,9 +138,9 @@ const checkOverdueOrders = schedule.scheduleJob('0 10 * * *', async () => {
     
     const now = new Date();
     const overdueOrders = await Order.find({
-      deliveryDate: { $lt: now },
+      promiseDate: { $lt: now },
       status: { $nin: ['delivered', 'cancelled'] }
-    }).populate('customer', 'name email');
+    }).populate('customerId', 'name email');
 
     if (overdueOrders.length > 0) {
       // Notify sales team

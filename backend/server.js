@@ -5,7 +5,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const http = require('http');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Import database connection
 const connectDB = require('./config/database');
@@ -14,7 +15,7 @@ const connectDB = require('./config/database');
 const { initializeSocket } = require('./services/socketService');
 
 // Import scheduler service
-require('./services/schedulerService');
+const startScheduler = () => require('./services/schedulerService');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -35,6 +36,7 @@ const qualityRoutes = require('./routes/quality');
 const scheduleRoutes = require('./routes/schedules');
 const uploadRoutes = require('./routes/upload');
 const exportRoutes = require('./routes/export');
+const itemMasterRoutes = require('./routes/items');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -61,14 +63,7 @@ app.use('/api/', apiLimiter);
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
-// Connect to Database
-connectDB();
-
-// Initialize WebSocket
-const io = initializeSocket(server);
-
-// Make io accessible to routes
-app.set('io', io);
+let io;
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -87,6 +82,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/quality', qualityRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/items', itemMasterRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/export', exportRoutes);
 
@@ -120,11 +116,30 @@ app.use((req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-// Start server
+// Start server (after DB connect)
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  logger.info(`Server started on port ${PORT}`);
-  console.log(`
+const startServer = async () => {
+  await connectDB();
+
+  // Initialize WebSocket
+  io = initializeSocket(server);
+  app.set('io', io);
+
+  // Start scheduler jobs after DB is available
+  startScheduler();
+
+  server.once('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      logger.error(`Port ${PORT} is already in use (or reserved). Set a different PORT in backend/.env and restart.`);
+      process.exit(1);
+    }
+    logger.error(`Server error: ${err?.message || err}`);
+    process.exit(1);
+  });
+
+  server.listen(PORT, () => {
+    logger.info(`Server started on port ${PORT}`);
+    console.log(`
   ╔════════════════════════════════════════════════════════════╗
   ║   PM Textiles ERP - Backend Server v2.0                   ║
   ║   Production, Inventory & Order Management System          ║
@@ -138,6 +153,9 @@ server.listen(PORT, () => {
   ║   Real-time Features: Active ✅                            ║
   ╚════════════════════════════════════════════════════════════╝
   `);
-});
+  });
+};
+
+startServer();
 
 module.exports = { app, server };

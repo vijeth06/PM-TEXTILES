@@ -12,13 +12,23 @@ const transporter = nodemailer.createTransport({
 });
 
 // Verify connection configuration
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('Email service error:', error);
-  } else {
-    console.log('✅ Email service is ready');
-  }
-});
+const hasEmailCreds = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+const hasPlaceholderCreds =
+  /your-email/i.test(process.env.EMAIL_USER || '') ||
+  /your-app-password/i.test(process.env.EMAIL_PASSWORD || '') ||
+  /example/i.test(process.env.EMAIL_USER || '');
+
+if (hasEmailCreds && !hasPlaceholderCreds) {
+  transporter.verify((error) => {
+    if (error) {
+      console.log('Email service error:', error);
+    } else {
+      console.log('✅ Email service is ready');
+    }
+  });
+} else {
+  console.log('ℹ️ Email service disabled (missing or placeholder EMAIL credentials)');
+}
 
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
@@ -119,6 +129,87 @@ const emailTemplates = {
           <p><strong>Quantity:</strong> ${production.quantity}</p>
           <p><strong>Completion Date:</strong> ${new Date().toLocaleDateString()}</p>
         </div>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 12px;">PM Textiles ERP System</p>
+      </div>
+    `
+  }),
+
+  orderDispatched: (order, customer) => ({
+    subject: `Order Dispatched - #${order.orderNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2196F3;">🚚 Order Dispatched</h2>
+        <p>Dear ${customer.name},</p>
+        <p>Great news! Your order has been dispatched.</p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+          <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+          <p><strong>Dispatch Date:</strong> ${new Date().toLocaleDateString()}</p>
+          <p><strong>Vehicle Number:</strong> ${order.dispatchDetails?.vehicleNumber || 'N/A'}</p>
+          <p><strong>Driver:</strong> ${order.dispatchDetails?.driverName || 'N/A'}</p>
+        </div>
+        <p>Your order will reach you soon!</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 12px;">PM Textiles ERP System</p>
+      </div>
+    `
+  }),
+
+  qualityCheckFailed: (qualityCheck, batch) => ({
+    subject: `⚠️ Quality Check Failed - Batch #${batch.batchNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #f44336;">⚠️ Quality Check Failed</h2>
+        <p>A quality check has failed and requires immediate attention.</p>
+        <div style="background: #ffebee; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #f44336;">
+          <p><strong>Batch Number:</strong> ${batch.batchNumber}</p>
+          <p><strong>Product:</strong> ${batch.productName}</p>
+          <p><strong>Issue:</strong> ${qualityCheck.remarks}</p>
+          <p><strong>Inspector:</strong> ${qualityCheck.inspectorName}</p>
+          <p><strong>Date:</strong> ${new Date(qualityCheck.checkDate).toLocaleDateString()}</p>
+        </div>
+        <p style="color: #f44336; font-weight: bold;">Action Required: Review and address the quality issues.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 12px;">PM Textiles ERP System</p>
+      </div>
+    `
+  }),
+
+  paymentReceived: (payment, order, customer) => ({
+    subject: `Payment Received - Order #${order.orderNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #4CAF50;">✅ Payment Received</h2>
+        <p>Dear ${customer.name},</p>
+        <p>We have received your payment. Thank you!</p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+          <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+          <p><strong>Payment Amount:</strong> ₹${payment.amount.toLocaleString()}</p>
+          <p><strong>Payment Method:</strong> ${payment.paymentMethod}</p>
+          <p><strong>Transaction ID:</strong> ${payment.transactionId}</p>
+          <p><strong>Date:</strong> ${new Date(payment.paymentDate).toLocaleDateString()}</p>
+        </div>
+        <p>A receipt has been generated for your records.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 12px;">PM Textiles ERP System</p>
+      </div>
+    `
+  }),
+
+  supplierOrderCreated: (purchaseOrder, supplier) => ({
+    subject: `New Purchase Order - #${purchaseOrder.orderNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>New Purchase Order</h2>
+        <p>Dear ${supplier.name},</p>
+        <p>We have created a new purchase order for your reference.</p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+          <p><strong>PO Number:</strong> ${purchaseOrder.orderNumber}</p>
+          <p><strong>Order Date:</strong> ${new Date(purchaseOrder.orderDate).toLocaleDateString()}</p>
+          <p><strong>Expected Delivery:</strong> ${new Date(purchaseOrder.expectedDelivery).toLocaleDateString()}</p>
+          <p><strong>Total Amount:</strong> ₹${purchaseOrder.totalAmount.toLocaleString()}</p>
+        </div>
+        <p>Please confirm the order and expected delivery date.</p>
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
         <p style="color: #666; font-size: 12px;">PM Textiles ERP System</p>
       </div>

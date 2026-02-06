@@ -7,11 +7,11 @@ router.use(protect);
 
 router.route('/')
   .get(paymentController.getPayments)
-  .post(authorize('admin', 'manager', 'accountant'), paymentController.createPayment);
+  .post(authorize('admin', 'management'), paymentController.createPayment);
 
 router.route('/:id')
   .get(paymentController.getPayment)
-  .put(authorize('admin', 'manager', 'accountant'), paymentController.updatePayment);
+  .put(authorize('admin', 'management'), paymentController.updatePayment);
 
 router.get('/order/:orderId/summary', paymentController.getOrderPaymentSummary);
 

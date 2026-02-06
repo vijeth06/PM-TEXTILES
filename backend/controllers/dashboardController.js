@@ -491,3 +491,336 @@ exports.getSupplierPerformance = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get dashboard trends for charts
+// @route   GET /api/dashboard/trends
+// @access  Private
+exports.getDashboardTrends = async (req, res, next) => {
+  try {
+    const { period = '7days' } = req.query;
+    
+    let startDate = new Date();
+    switch(period) {
+      case '7days':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case '30days':
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+      case '90days':
+        startDate.setDate(startDate.getDate() - 90);
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 7);
+    }
+
+    // Production trend
+    const productionTrend = await ProductionStage.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          completed: {
+            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+          },
+          planned: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    // Revenue trend
+    const revenueTrend = await Order.aggregate([
+      {
+        $match: {
+          orderDate: { $gte: startDate },
+          status: { $ne: 'cancelled' }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
+          revenue: { $sum: '$totalValue' },
+          orders: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    // Quality trend (output vs input)
+    const qualityTrend = await ProductionStage.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate },
+          inputQuantity: { $gt: 0 }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          totalInput: { $sum: '$inputQuantity' },
+          totalOutput: { $sum: '$outputQuantity' }
+        }
+      },
+      {
+        $project: {
+          date: '$_id',
+          passRate: {
+            $multiply: [
+              { $divide: ['$totalOutput', '$totalInput'] },
+              100
+            ]
+          }
+        }
+      },
+      {
+        $sort: { date: 1 }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        productionTrend,
+        revenueTrend,
+        qualityTrend,
+        period
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get order status distribution
+// @route   GET /api/dashboard/order-status-distribution
+// @access  Private
+exports.getOrderStatusDistribution = async (req, res, next) => {
+  try {
+    const distribution = await Order.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    res.json({
+      success: true,
+      data: distribution.map(d => ({ status: d._id, count: d.count }))
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get quality pass rate by production stage
+// @route   GET /api/dashboard/quality-by-stage
+// @access  Private
+exports.getQualityByStage = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const match = {};
+    if (startDate || endDate) {
+      match.createdAt = {};
+      if (startDate) match.createdAt.$gte = new Date(startDate);
+      if (endDate) match.createdAt.$lte = new Date(endDate);
+    }
+    match.inputQuantity = { $gt: 0 };
+
+    const data = await ProductionStage.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$stageName',
+          totalInput: { $sum: '$inputQuantity' },
+          totalOutput: { $sum: '$outputQuantity' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          stage: '$_id',
+          count: 1,
+          passRate: {
+            $round: [
+              {
+                $multiply: [
+                  { $divide: ['$totalOutput', '$totalInput'] },
+                  100
+                ]
+              },
+              2
+            ]
+          }
+        }
+      },
+      { $sort: { stage: 1 } }
+    ]);
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Monthly performance snapshot for charts
+// @route   GET /api/dashboard/monthly-performance
+// @access  Private
+exports.getMonthlyPerformance = async (req, res, next) => {
+  try {
+    const { months = 6 } = req.query;
+    const monthsInt = Math.max(1, Math.min(parseInt(months, 10) || 6, 24));
+
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    start.setMonth(start.getMonth() - (monthsInt - 1));
+
+    const ordersAgg = await Order.aggregate([
+      { $match: { orderDate: { $gte: start } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$orderDate' } },
+          orders: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const productionAgg = await ProductionStage.aggregate([
+      { $match: { actualEndTime: { $gte: start }, status: 'completed' } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$actualEndTime' } },
+          production: { $sum: '$outputQuantity' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const deliveryAgg = await Order.aggregate([
+      {
+        $match: {
+          orderDate: { $gte: start },
+          status: 'delivered',
+          actualDeliveryDate: { $exists: true, $ne: null }
+        }
+      },
+      {
+        $project: {
+          month: { $dateToString: { format: '%Y-%m', date: '$actualDeliveryDate' } },
+          onTime: {
+            $cond: [
+              { $lte: ['$actualDeliveryDate', '$promiseDate'] },
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$month',
+          delivered: { $sum: 1 },
+          onTime: { $sum: '$onTime' }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          onTimeDeliveryRate: {
+            $round: [
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$delivered', 0] },
+                      { $divide: ['$onTime', '$delivered'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
+              2
+            ]
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const byMonth = new Map();
+    for (const row of ordersAgg) byMonth.set(row._id, { month: row._id, orders: row.orders, production: 0, onTimeDeliveryRate: 0 });
+    for (const row of productionAgg) {
+      const existing = byMonth.get(row._id) || { month: row._id, orders: 0, production: 0, onTimeDeliveryRate: 0 };
+      existing.production = row.production;
+      byMonth.set(row._id, existing);
+    }
+    for (const row of deliveryAgg) {
+      const existing = byMonth.get(row._id) || { month: row._id, orders: 0, production: 0, onTimeDeliveryRate: 0 };
+      existing.onTimeDeliveryRate = row.onTimeDeliveryRate;
+      byMonth.set(row._id, existing);
+    }
+
+    res.json({
+      success: true,
+      data: Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month))
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Inventory value trend by month
+// @route   GET /api/dashboard/inventory-value-trend
+// @access  Private
+exports.getInventoryValueTrend = async (req, res, next) => {
+  try {
+    const { months = 7 } = req.query;
+    const monthsInt = Math.max(1, Math.min(parseInt(months, 10) || 7, 24));
+
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    start.setMonth(start.getMonth() - (monthsInt - 1));
+
+    const trend = await Inventory.aggregate([
+      {
+        $match: {
+          receivedDate: { $gte: start },
+          status: { $in: ['available', 'reserved'] }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$receivedDate' } },
+          totalValue: { $sum: '$totalValue' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json({
+      success: true,
+      data: trend.map(t => ({ month: t._id, totalValue: t.totalValue }))
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { API_BASE_URL } from '../config/urls';
 
 // Create axios instance
 const api = axios.create({
@@ -37,6 +36,7 @@ export const productionAPI = {
 // Inventory API
 export const inventoryAPI = {
   getInventory: (params) => api.get('/inventory', { params }),
+  lookupBatch: (code) => api.get('/inventory/lookup', { params: { code } }),
   getItem: (id) => api.get(`/inventory/${id}`),
   issueMaterial: (data) => api.post('/inventory/issue', data),
   receiveMaterial: (data) => api.post('/inventory/receive', data),
@@ -100,7 +100,12 @@ export const dashboardAPI = {
   getOrderFulfillment: (params) => api.get('/dashboard/order-fulfillment', { params }),
   getMachineUtilization: (params) => api.get('/dashboard/machine-utilization', { params }),
   getSupplierPerformance: () => api.get('/dashboard/supplier-performance'),
-  getMetrics: () => api.get('/dashboard/metrics')
+  getMetrics: () => api.get('/dashboard/metrics'),
+  getTrends: (params) => api.get('/dashboard/trends', { params }),
+  getOrderStatusDistribution: () => api.get('/dashboard/order-status-distribution'),
+  getQualityByStage: (params) => api.get('/dashboard/quality-by-stage', { params }),
+  getMonthlyPerformance: (params) => api.get('/dashboard/monthly-performance', { params }),
+  getInventoryValueTrend: (params) => api.get('/dashboard/inventory-value-trend', { params })
 };
 
 // Auth API

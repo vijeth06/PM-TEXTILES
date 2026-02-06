@@ -7,6 +7,7 @@ import { NotificationProvider } from './context/NotificationContext';
 // Pages
 import Login from './pages/Login';
 import DashboardNew from './pages/DashboardNew';
+import EnhancedDashboard from './pages/EnhancedDashboard';
 import Production from './pages/Production';
 import ProductionExecution from './pages/ProductionExecution';
 import Inventory from './pages/Inventory';
@@ -33,7 +34,8 @@ function App() {
             
             <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardNew />} />
+              <Route path="/dashboard" element={<EnhancedDashboard />} />
+              <Route path="/dashboard-old" element={<DashboardNew />} />
               <Route path="/production/*" element={<Production />} />
               <Route path="/production-execution/*" element={<ProductionExecution />} />
               <Route path="/inventory/*" element={<Inventory />} />

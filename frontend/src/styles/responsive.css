@@ -1,0 +1,182 @@
+/* Mobile-First Responsive Utilities */
+
+/* Mobile Menu Toggle */
+.mobile-menu {
+  @apply fixed inset-0 z-40 lg:hidden;
+}
+
+.mobile-menu-overlay {
+  @apply fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity;
+}
+
+.mobile-menu-content {
+  @apply relative flex-1 flex flex-col max-w-xs w-full bg-white;
+}
+
+/* Responsive Container */
+.responsive-container {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+/* Responsive Grid */
+.responsive-grid {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+}
+
+.responsive-grid-2 {
+  @apply grid grid-cols-1 gap-4 md:grid-cols-2;
+}
+
+.responsive-grid-3 {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
+}
+
+/* Responsive Table */
+.responsive-table-container {
+  @apply overflow-x-auto -mx-4 sm:mx-0;
+}
+
+.responsive-table {
+  @apply min-w-full divide-y divide-gray-200;
+}
+
+/* Hide on mobile */
+.hidden-mobile {
+  @apply hidden sm:block;
+}
+
+/* Show only on mobile */
+.show-mobile {
+  @apply block sm:hidden;
+}
+
+/* Responsive Text */
+.responsive-heading-lg {
+  @apply text-2xl sm:text-3xl lg:text-4xl font-bold;
+}
+
+.responsive-heading-md {
+  @apply text-xl sm:text-2xl lg:text-3xl font-bold;
+}
+
+.responsive-heading-sm {
+  @apply text-lg sm:text-xl lg:text-2xl font-semibold;
+}
+
+/* Responsive Spacing */
+.responsive-spacing-y {
+  @apply space-y-4 sm:space-y-6 lg:space-y-8;
+}
+
+.responsive-spacing-x {
+  @apply space-x-2 sm:space-x-4 lg:space-x-6;
+}
+
+/* Responsive Cards */
+.responsive-card {
+  @apply bg-white rounded-lg shadow p-4 sm:p-6 lg:p-8;
+}
+
+/* Responsive Buttons */
+.responsive-button-group {
+  @apply flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-3;
+}
+
+/* Mobile-Friendly Form */
+.responsive-form {
+  @apply space-y-4 sm:space-y-6;
+}
+
+.responsive-form-row {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
+}
+
+/* Responsive Modal */
+.responsive-modal {
+  @apply fixed inset-0 z-50 overflow-y-auto;
+}
+
+.responsive-modal-content {
+  @apply inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full;
+}
+
+/* Responsive Stats Cards */
+.stats-grid {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4;
+}
+
+/* Responsive Navigation */
+.nav-mobile {
+  @apply fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 lg:hidden;
+}
+
+.nav-desktop {
+  @apply hidden lg:flex lg:flex-1;
+}
+
+/* Responsive Dashboard Layout */
+.dashboard-layout {
+  @apply grid grid-cols-1 gap-4 lg:grid-cols-3 xl:grid-cols-4;
+}
+
+.dashboard-main {
+  @apply col-span-1 lg:col-span-2 xl:col-span-3;
+}
+
+.dashboard-sidebar {
+  @apply col-span-1;
+}
+
+/* Touch-Friendly Targets */
+.touch-target {
+  @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+}
+
+/* Responsive Image */
+.responsive-image {
+  @apply w-full h-auto;
+}
+
+/* Mobile Padding */
+.mobile-padding {
+  @apply p-4 sm:p-6 lg:p-8;
+}
+
+/* Responsive Flex */
+.responsive-flex {
+  @apply flex flex-col sm:flex-row;
+}
+
+.responsive-flex-reverse {
+  @apply flex flex-col-reverse sm:flex-row;
+}
+
+/* Breakpoint-specific visibility */
+@media (max-width: 640px) {
+  .sm-hidden {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .md-hidden {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .lg-hidden {
+    display: none !important;
+  }
+}
+
+/* Mobile-optimized scrollbar */
+.mobile-scroll {
+  @apply overflow-auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-friendly status badges */
+.status-badge {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium sm:px-3 sm:text-sm;
+}
