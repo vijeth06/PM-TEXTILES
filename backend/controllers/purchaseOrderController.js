@@ -1,6 +1,7 @@
 const PurchaseOrder = require('../models/PurchaseOrder');
 const Supplier = require('../models/Supplier');
 const Inventory = require('../models/Inventory');
+const { v4: uuidv4 } = require('uuid');
 
 // @desc    Get all purchase orders
 // @route   GET /api/inventory/purchase-orders
@@ -167,7 +168,9 @@ exports.receiveMaterials = async (req, res, next) => {
       });
     }
 
-    // Update received quantities
+    const resolvedReceiveDate = receiveDate ? new Date(receiveDate) : new Date();
+
+    // Update received quantities + create inventory batches
     const inventoryEntries = [];
     
     for (const receivedItem of items) {
@@ -189,35 +192,74 @@ exports.receiveMaterials = async (req, res, next) => {
 
       poItem.receivedQuantity += receivedItem.quantity;
 
-      // Create inventory entry
-      const inventoryData = {
-        itemType: 'raw_material',
+      // Normalize UOM to match Inventory enum
+      const allowedUoms = new Set(['kg', 'ltr', 'mtr', 'pcs', 'roll']);
+      const resolvedUom = String(poItem.uom || '').trim().toLowerCase();
+      if (!allowedUoms.has(resolvedUom)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid UOM '${poItem.uom}' for item: ${poItem.materialName}. Allowed: kg, ltr, mtr, pcs, roll.`
+        });
+      }
+
+      const normalizedItemCode = String(poItem.materialCode || '').trim().toUpperCase();
+      const normalizedBatchNo = (receivedItem.batchNo ? String(receivedItem.batchNo) : `BATCH-${purchaseOrder.poNumber}-${normalizedItemCode}-${uuidv4().slice(0, 8)}`)
+        .trim()
+        .toUpperCase();
+
+      // Prevent duplicate batch numbers for the same item
+      const existingBatch = await Inventory.findOne({ batchNo: normalizedBatchNo, itemCode: normalizedItemCode }).select('_id');
+      if (existingBatch) {
+        return res.status(400).json({
+          success: false,
+          message: `Batch number already exists for item ${normalizedItemCode}: ${normalizedBatchNo}`
+        });
+      }
+
+      // Barcode supports BOTH manual entry and auto-generation
+      let resolvedBarcode = receivedItem.barcode ? String(receivedItem.barcode).trim() : '';
+      if (!resolvedBarcode) {
+        resolvedBarcode = `BATCH-${normalizedItemCode}-${normalizedBatchNo}`;
+
+        // Ensure uniqueness even in edge cases
+        const barcodeExists = await Inventory.findOne({ barcode: resolvedBarcode }).select('_id');
+        if (barcodeExists) {
+          resolvedBarcode = `${resolvedBarcode}-${uuidv4().slice(0, 8).toUpperCase()}`;
+        }
+      } else {
+        const barcodeExists = await Inventory.findOne({ barcode: resolvedBarcode }).select('_id');
+        if (barcodeExists) {
+          return res.status(400).json({
+            success: false,
+            message: 'Barcode already exists for another batch'
+          });
+        }
+      }
+
+      const inventoryEntry = await Inventory.create({
+        itemType: 'RawMaterial',
         itemId: poItem.materialId,
-        itemCode: poItem.materialCode,
+        itemCode: normalizedItemCode,
         itemName: poItem.materialName,
-        batchNo: receivedItem.batchNo || `BATCH-${Date.now()}`,
-        supplierId: purchaseOrder.supplierId,
-        purchaseOrderId: purchaseOrder._id,
-        poNumber: purchaseOrder.poNumber,
-        qtyReceived: receivedItem.quantity,
+        batchNo: normalizedBatchNo,
+        barcode: resolvedBarcode,
         qtyOnHand: receivedItem.quantity,
-        qtyAvailable: receivedItem.quantity,
-        uom: poItem.uom,
+        qtyReserved: 0,
+        uom: resolvedUom,
         costPerUnit: poItem.ratePerUnit,
-        totalValue: receivedItem.quantity * poItem.ratePerUnit,
-        receivedDate: receiveDate || new Date(),
-        fifoDate: receiveDate || new Date(),
-        status: 'available',
+        supplierId: purchaseOrder.supplierId,
+        receivedDate: resolvedReceiveDate,
+        fifoDate: resolvedReceiveDate,
+        grn: invoiceNo || undefined,
+        qualityStatus: receivedItem.qualityStatus || 'approved',
         location: {
           warehouse: req.body.warehouse || 'Main Warehouse',
           rack: req.body.rack || '',
           bin: req.body.bin || ''
         },
-        qualityStatus: receivedItem.qualityStatus || 'approved',
-        remarks: remarks || ''
-      };
+        notes: remarks || ''
+      });
 
-      const inventoryEntry = await Inventory.create(inventoryData);
       inventoryEntries.push(inventoryEntry);
     }
 
@@ -231,7 +273,7 @@ exports.receiveMaterials = async (req, res, next) => {
 
     if (allReceived) {
       purchaseOrder.status = 'received';
-      purchaseOrder.actualDeliveryDate = receiveDate || new Date();
+      purchaseOrder.actualDeliveryDate = resolvedReceiveDate;
       
       // Calculate delivery performance
       const expectedDate = new Date(purchaseOrder.expectedDeliveryDate);

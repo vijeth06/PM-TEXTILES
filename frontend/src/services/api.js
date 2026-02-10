@@ -83,6 +83,15 @@ export const suppliersAPI = {
   deleteSupplier: (id) => api.delete(`/suppliers/${id}`)
 };
 
+// Items (RawMaterial, SemiFinishedGood, FinishedGood)
+export const itemsAPI = {
+  getItems: (params) => api.get('/items', { params }),
+  getItem: (id) => api.get(`/items/${id}`),
+  createItem: (data) => api.post('/items', data),
+  updateItem: (id, data) => api.put(`/items/${id}`, data),
+  deleteItem: (id) => api.delete(`/items/${id}`)
+};
+
 // Reports API
 export const reportsAPI = {
   getDailyProduction: (params) => api.get('/reports/production-daily', { params }),

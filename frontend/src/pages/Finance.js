@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { 
   BanknotesIcon, DocumentTextIcon, ShoppingBagIcon, ChartPieIcon,
   PlusIcon, CheckCircleIcon, XCircleIcon
 } from '@heroicons/react/24/outline';
+import { inventoryAPI, itemsAPI, suppliersAPI } from '../services/api';
 import { 
   Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, 
   Modal, Input, Select, Textarea, LoadingSpinner 
@@ -386,22 +387,264 @@ const PaymentsTab = () => {
 };
 
 const PurchaseOrdersTab = () => {
-  const [orders] = useState([
-    {
-      _id: '1',
-      poNo: 'PO-2026-001',
-      supplierName: 'Yarn Suppliers Ltd',
-      poDate: new Date('2026-01-02'),
-      deliveryDate: new Date('2026-01-20'),
-      amount: 250000,
-      status: 'pending'
+  const [loading, setLoading] = useState(true);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [rawMaterials, setRawMaterials] = useState([]);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [selectedPO, setSelectedPO] = useState(null);
+
+  const [createForm, setCreateForm] = useState({
+    supplierId: '',
+    category: 'yarn',
+    expectedDeliveryDate: '',
+    items: [
+      { materialId: '', quantity: '', uom: 'kg', ratePerUnit: '', taxPercent: 0, description: '' }
+    ],
+    remarks: ''
+  });
+
+  const [receiveForm, setReceiveForm] = useState({
+    receiveDate: '',
+    invoiceNo: '',
+    remarks: '',
+    warehouse: 'Main Warehouse',
+    rack: '',
+    bin: '',
+    items: []
+  });
+
+  const computeTotals = useCallback((items) => {
+    const normalized = items.map((it) => {
+      const quantity = Number(it.quantity || 0);
+      const ratePerUnit = Number(it.ratePerUnit || 0);
+      const taxPercent = Number(it.taxPercent || 0);
+
+      const lineSubTotal = quantity * ratePerUnit;
+      const lineTax = (lineSubTotal * taxPercent) / 100;
+      const totalAmount = lineSubTotal + lineTax;
+
+      return {
+        ...it,
+        quantity,
+        ratePerUnit,
+        taxPercent,
+        totalAmount
+      };
+    });
+
+    const subTotal = normalized.reduce((sum, it) => sum + (it.quantity * it.ratePerUnit), 0);
+    const taxAmount = normalized.reduce((sum, it) => sum + ((it.quantity * it.ratePerUnit * it.taxPercent) / 100), 0);
+    const totalAmount = subTotal + taxAmount;
+
+    return { normalized, subTotal, taxAmount, totalAmount };
+  }, []);
+
+  const fetchPurchaseOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await inventoryAPI.getPurchaseOrders({ page: 1, limit: 50 });
+      setPurchaseOrders(res.data.data || []);
+    } catch (e) {
+      toast.error('Failed to fetch purchase orders');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
+
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      const res = await suppliersAPI.getSuppliers({ page: 1, limit: 200 });
+      setSuppliers(res.data.data || []);
+    } catch (e) {
+      toast.error('Failed to fetch suppliers');
+    }
+  }, []);
+
+  const fetchRawMaterials = useCallback(async () => {
+    try {
+      const res = await itemsAPI.getItems({ type: 'RawMaterial', page: 1, limit: 500 });
+      setRawMaterials(res.data.data || []);
+    } catch (e) {
+      toast.error('Failed to fetch raw materials');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPurchaseOrders();
+    fetchSuppliers();
+    fetchRawMaterials();
+  }, [fetchPurchaseOrders, fetchSuppliers, fetchRawMaterials]);
+
+  const supplierById = useMemo(() => {
+    const map = new Map();
+    for (const s of suppliers) map.set(String(s._id), s);
+    return map;
+  }, [suppliers]);
+
+  const rawMaterialById = useMemo(() => {
+    const map = new Map();
+    for (const m of rawMaterials) map.set(String(m._id), m);
+    return map;
+  }, [rawMaterials]);
+
+  const getStatusBadge = (status) => {
+    const map = {
+      draft: 'default',
+      sent: 'info',
+      confirmed: 'warning',
+      partial: 'warning',
+      received: 'success',
+      cancelled: 'danger'
+    };
+    const variant = map[status] || 'default';
+    return <Badge variant={variant}>{String(status || '').toUpperCase()}</Badge>;
+  };
+
+  const openCreate = () => {
+    setCreateForm({
+      supplierId: '',
+      category: 'yarn',
+      expectedDeliveryDate: '',
+      items: [{ materialId: '', quantity: '', uom: 'kg', ratePerUnit: '', taxPercent: 0, description: '' }],
+      remarks: ''
+    });
+    setShowCreateModal(true);
+  };
+
+  const addCreateItem = () => {
+    setCreateForm((prev) => ({
+      ...prev,
+      items: [...prev.items, { materialId: '', quantity: '', uom: 'kg', ratePerUnit: '', taxPercent: 0, description: '' }]
+    }));
+  };
+
+  const updateCreateItem = (idx, patch) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      items: prev.items.map((it, i) => (i === idx ? { ...it, ...patch } : it))
+    }));
+  };
+
+  const createPurchaseOrder = async () => {
+    try {
+      if (!createForm.supplierId) return toast.error('Supplier is required');
+      if (!createForm.expectedDeliveryDate) return toast.error('Expected delivery date is required');
+
+      const { normalized, subTotal, taxAmount, totalAmount } = computeTotals(createForm.items);
+
+      for (const it of normalized) {
+        if (!it.materialId) return toast.error('Select a raw material for each item');
+        if (!it.quantity || it.quantity <= 0) return toast.error('Quantity must be > 0');
+        if (!it.uom) return toast.error('UOM is required');
+        if (it.ratePerUnit < 0) return toast.error('Rate must be valid');
+      }
+
+      const itemsPayload = normalized.map((it) => {
+        const m = rawMaterialById.get(String(it.materialId));
+        return {
+          materialId: it.materialId,
+          materialCode: m?.code || m?.itemCode || m?.materialCode || '',
+          materialName: m?.name || m?.itemName || m?.materialName || 'Raw Material',
+          description: it.description || '',
+          quantity: it.quantity,
+          uom: it.uom,
+          ratePerUnit: it.ratePerUnit,
+          taxPercent: it.taxPercent,
+          totalAmount: it.totalAmount
+        };
+      });
+
+      await inventoryAPI.createPurchaseOrder({
+        supplierId: createForm.supplierId,
+        category: createForm.category,
+        expectedDeliveryDate: createForm.expectedDeliveryDate,
+        items: itemsPayload,
+        subTotal,
+        taxAmount,
+        otherCharges: 0,
+        totalAmount,
+        remarks: createForm.remarks
+      });
+
+      toast.success('Purchase order created');
+      setShowCreateModal(false);
+      fetchPurchaseOrders();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to create purchase order');
+    }
+  };
+
+  const openReceive = (po) => {
+    setSelectedPO(po);
+    setReceiveForm({
+      receiveDate: '',
+      invoiceNo: '',
+      remarks: '',
+      warehouse: 'Main Warehouse',
+      rack: '',
+      bin: '',
+      items: (po.items || []).map((it) => ({
+        itemId: it._id,
+        materialName: it.materialName,
+        pendingQuantity: Math.max(0, Number(it.quantity || 0) - Number(it.receivedQuantity || 0)),
+        quantity: 0,
+        batchNo: '',
+        barcode: '',
+        qualityStatus: 'approved'
+      }))
+    });
+    setShowReceiveModal(true);
+  };
+
+  const updateReceiveItem = (idx, patch) => {
+    setReceiveForm((prev) => ({
+      ...prev,
+      items: prev.items.map((it, i) => (i === idx ? { ...it, ...patch } : it))
+    }));
+  };
+
+  const receiveMaterials = async () => {
+    try {
+      if (!selectedPO?._id) return;
+
+      const payloadItems = receiveForm.items
+        .map((it) => ({
+          itemId: it.itemId,
+          quantity: Number(it.quantity || 0),
+          batchNo: it.batchNo || undefined,
+          barcode: it.barcode || undefined,
+          qualityStatus: it.qualityStatus || 'approved'
+        }))
+        .filter((it) => it.quantity > 0);
+
+      if (payloadItems.length === 0) return toast.error('Enter received quantity for at least one item');
+
+      await inventoryAPI.receiveMaterials(selectedPO._id, {
+        items: payloadItems,
+        receiveDate: receiveForm.receiveDate || undefined,
+        invoiceNo: receiveForm.invoiceNo || undefined,
+        remarks: receiveForm.remarks || undefined,
+        warehouse: receiveForm.warehouse,
+        rack: receiveForm.rack,
+        bin: receiveForm.bin
+      });
+
+      toast.success('Materials received and inventory updated');
+      setShowReceiveModal(false);
+      setSelectedPO(null);
+      fetchPurchaseOrders();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to receive materials');
+    }
+  };
 
   return (
     <>
       <div className="flex justify-end mb-6">
-        <Button className="flex items-center">
+        <Button className="flex items-center" onClick={openCreate}>
           <PlusIcon className="h-5 w-5 mr-2" />
           New Purchase Order
         </Button>
@@ -409,38 +652,243 @@ const PurchaseOrdersTab = () => {
 
       <Card>
         <CardBody className="p-0">
-          <Table>
-            <Thead>
-              <tr>
-                <Th>PO No</Th>
-                <Th>Supplier</Th>
-                <Th>PO Date</Th>
-                <Th>Delivery Date</Th>
-                <Th>Amount</Th>
-                <Th>Status</Th>
-                <Th>Actions</Th>
-              </tr>
-            </Thead>
-            <Tbody>
-              {orders.map((order) => (
-                <tr key={order._id}>
-                  <Td className="font-medium">{order.poNo}</Td>
-                  <Td>{order.supplierName}</Td>
-                  <Td>{order.poDate.toLocaleDateString()}</Td>
-                  <Td>{order.deliveryDate.toLocaleDateString()}</Td>
-                  <Td className="font-medium">₹{order.amount.toLocaleString()}</Td>
-                  <Td>
-                    <Badge variant="warning">PENDING</Badge>
-                  </Td>
-                  <Td>
-                    <Button variant="outline" size="sm">View</Button>
-                  </Td>
+          {loading ? (
+            <div className="py-10">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : (
+            <Table>
+              <Thead>
+                <tr>
+                  <Th>PO No</Th>
+                  <Th>Supplier</Th>
+                  <Th>PO Date</Th>
+                  <Th>Expected Delivery</Th>
+                  <Th>Amount</Th>
+                  <Th>Status</Th>
+                  <Th>Actions</Th>
                 </tr>
-              ))}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {purchaseOrders.map((po) => (
+                  <tr key={po._id}>
+                    <Td className="font-medium">{po.poNumber}</Td>
+                    <Td>{po.supplierName || supplierById.get(String(po.supplierId?._id || po.supplierId))?.name || '-'}</Td>
+                    <Td>{po.poDate ? new Date(po.poDate).toLocaleDateString() : '-'}</Td>
+                    <Td>{po.expectedDeliveryDate ? new Date(po.expectedDeliveryDate).toLocaleDateString() : '-'}</Td>
+                    <Td className="font-medium">₹{Number(po.totalAmount || 0).toLocaleString()}</Td>
+                    <Td>{getStatusBadge(po.status)}</Td>
+                    <Td>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openReceive(po)} disabled={po.status === 'cancelled' || po.status === 'received'}>
+                          Receive
+                        </Button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
         </CardBody>
       </Card>
+
+      {/* Create PO */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="New Purchase Order"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Supplier"
+              value={createForm.supplierId}
+              onChange={(e) => setCreateForm((p) => ({ ...p, supplierId: e.target.value }))}
+            >
+              <option value="">Select supplier</option>
+              {suppliers.map((s) => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
+            </Select>
+
+            <Select
+              label="Category"
+              value={createForm.category}
+              onChange={(e) => setCreateForm((p) => ({ ...p, category: e.target.value }))}
+            >
+              <option value="yarn">Yarn</option>
+              <option value="dye">Dye</option>
+              <option value="chemical">Chemical</option>
+              <option value="machinery">Machinery</option>
+              <option value="consumables">Consumables</option>
+              <option value="other">Other</option>
+            </Select>
+
+            <Input
+              label="Expected Delivery"
+              type="date"
+              value={createForm.expectedDeliveryDate}
+              onChange={(e) => setCreateForm((p) => ({ ...p, expectedDeliveryDate: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="font-medium text-gray-900">Items</div>
+              <Button variant="outline" size="sm" onClick={addCreateItem}>Add Item</Button>
+            </div>
+
+            {createForm.items.map((it, idx) => (
+              <div key={idx} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <Select
+                  label="Raw Material"
+                  value={it.materialId}
+                  onChange={(e) => updateCreateItem(idx, { materialId: e.target.value })}
+                >
+                  <option value="">Select</option>
+                  {rawMaterials.map((m) => (
+                    <option key={m._id} value={m._id}>{m.name || m.itemName || m.code || m.itemCode}</option>
+                  ))}
+                </Select>
+
+                <Input
+                  label="Qty"
+                  type="number"
+                  value={it.quantity}
+                  onChange={(e) => updateCreateItem(idx, { quantity: e.target.value })}
+                />
+
+                <Select
+                  label="UOM"
+                  value={it.uom}
+                  onChange={(e) => updateCreateItem(idx, { uom: e.target.value })}
+                >
+                  <option value="kg">kg</option>
+                  <option value="ltr">ltr</option>
+                  <option value="mtr">mtr</option>
+                  <option value="pcs">pcs</option>
+                  <option value="roll">roll</option>
+                </Select>
+
+                <Input
+                  label="Rate"
+                  type="number"
+                  value={it.ratePerUnit}
+                  onChange={(e) => updateCreateItem(idx, { ratePerUnit: e.target.value })}
+                />
+
+                <Input
+                  label="Tax %"
+                  type="number"
+                  value={it.taxPercent}
+                  onChange={(e) => updateCreateItem(idx, { taxPercent: e.target.value })}
+                />
+
+                <Input
+                  label="Description"
+                  value={it.description}
+                  onChange={(e) => updateCreateItem(idx, { description: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+
+          <Textarea
+            label="Remarks"
+            value={createForm.remarks}
+            onChange={(e) => setCreateForm((p) => ({ ...p, remarks: e.target.value }))}
+          />
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button onClick={createPurchaseOrder}>Create</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Receive PO */}
+      <Modal
+        isOpen={showReceiveModal}
+        onClose={() => setShowReceiveModal(false)}
+        title={selectedPO ? `Receive Materials - ${selectedPO.poNumber}` : 'Receive Materials'}
+        size="lg"
+      >
+        {!selectedPO ? null : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                label="Receive Date"
+                type="date"
+                value={receiveForm.receiveDate}
+                onChange={(e) => setReceiveForm((p) => ({ ...p, receiveDate: e.target.value }))}
+              />
+              <Input
+                label="Invoice/GRN No"
+                value={receiveForm.invoiceNo}
+                onChange={(e) => setReceiveForm((p) => ({ ...p, invoiceNo: e.target.value }))}
+              />
+              <Input
+                label="Warehouse"
+                value={receiveForm.warehouse}
+                onChange={(e) => setReceiveForm((p) => ({ ...p, warehouse: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Rack"
+                value={receiveForm.rack}
+                onChange={(e) => setReceiveForm((p) => ({ ...p, rack: e.target.value }))}
+              />
+              <Input
+                label="Bin"
+                value={receiveForm.bin}
+                onChange={(e) => setReceiveForm((p) => ({ ...p, bin: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="font-medium text-gray-900">Items to receive</div>
+              {receiveForm.items.map((it, idx) => (
+                <div key={it.itemId} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                  <Input label="Material" value={it.materialName} disabled />
+                  <Input label="Pending" value={it.pendingQuantity} disabled />
+                  <Input
+                    label="Receive Qty"
+                    type="number"
+                    value={it.quantity}
+                    onChange={(e) => {
+                      const val = Number(e.target.value || 0);
+                      const safe = Math.min(Math.max(0, val), Number(it.pendingQuantity || 0));
+                      updateReceiveItem(idx, { quantity: safe });
+                    }}
+                  />
+                  <Input label="Batch No (optional)" value={it.batchNo} onChange={(e) => updateReceiveItem(idx, { batchNo: e.target.value })} />
+                  <Input label="Barcode (optional)" value={it.barcode} onChange={(e) => updateReceiveItem(idx, { barcode: e.target.value })} />
+                  <Select label="Quality" value={it.qualityStatus} onChange={(e) => updateReceiveItem(idx, { qualityStatus: e.target.value })}>
+                    <option value="approved">approved</option>
+                    <option value="pending">pending</option>
+                    <option value="rejected">rejected</option>
+                  </Select>
+                </div>
+              ))}
+            </div>
+
+            <Textarea
+              label="Remarks"
+              value={receiveForm.remarks}
+              onChange={(e) => setReceiveForm((p) => ({ ...p, remarks: e.target.value }))}
+            />
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowReceiveModal(false)}>Cancel</Button>
+              <Button onClick={receiveMaterials}>Receive</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 };
