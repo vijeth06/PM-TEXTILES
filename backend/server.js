@@ -38,6 +38,18 @@ const uploadRoutes = require('./routes/upload');
 const exportRoutes = require('./routes/export');
 const itemMasterRoutes = require('./routes/items');
 
+// New Feature Routes
+const forecastRoutes = require('./routes/forecasts');
+const kpiRoutes = require('./routes/kpis');
+const analyticsRoutes = require('./routes/analytics');
+const autoReorderRoutes = require('./routes/autoReorder');
+const rfqRoutes = require('./routes/rfq');
+const employeeRoutes = require('./routes/employees');
+const maintenanceRoutes = require('./routes/maintenance');
+const leadRoutes = require('./routes/leads');
+const quotationRoutes = require('./routes/quotations');
+const documentRoutes = require('./routes/documents');
+
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -86,6 +98,18 @@ app.use('/api/items', itemMasterRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/export', exportRoutes);
 
+// New Feature Routes
+app.use('/api/analytics/forecasts', forecastRoutes);
+app.use('/api/analytics/kpis', kpiRoutes);
+app.use('/api/analytics/cost-analysis', analyticsRoutes);
+app.use('/api/procurement/auto-reorder', autoReorderRoutes);
+app.use('/api/procurement/rfq', rfqRoutes);
+app.use('/api/hr/employees', employeeRoutes);
+app.use('/api/maintenance/schedules', maintenanceRoutes);
+app.use('/api/crm/leads', leadRoutes);
+app.use('/api/sales/quotations', quotationRoutes);
+app.use('/api/documents', documentRoutes);
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({
@@ -100,8 +124,18 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'PM Textiles - Production, Inventory, and Order Management System',
-    version: '2.0.0',
-    documentation: '/api/health'
+    version: '3.0.0',
+    documentation: '/api/health',
+    features: {
+      analytics: ['Forecasting', 'KPIs', 'Cost Analysis'],
+      automation: ['Auto-Reorder', 'Smart Scheduling'],
+      procurement: ['RFQ Management', 'Supplier Performance'],
+      hr: ['Employee Management', 'Attendance', 'Training'],
+      maintenance: ['Preventive Maintenance', 'Asset Management'],
+      crm: ['Lead Management', 'Quotations', 'Customer Portal'],
+      documents: ['DMS', 'Version Control', 'Approvals'],
+      production: ['Recipe Management', 'Batch Traceability', 'Energy Tracking']
+    }
   });
 });
 

@@ -18,6 +18,10 @@ import ReportsNew from './pages/ReportsNew';
 import Finance from './pages/Finance';
 import Settings from './pages/Settings';
 import AuditTrail from './pages/AuditTrail';
+import Analytics from './pages/Analytics';
+import LeadsManagement from './pages/LeadsManagement';
+import EmployeeManagement from './pages/EmployeeManagement';
+import DocumentManagement from './pages/DocumentManagement';
 
 // Components
 import Layout from './components/Layout';
@@ -46,6 +50,10 @@ function App() {
               <Route path="/finance/*" element={<Finance />} />
               <Route path="/settings/*" element={<Settings />} />
               <Route path="/audit/*" element={<AuditTrail />} />
+              <Route path="/analytics/*" element={<Analytics />} />
+              <Route path="/leads/*" element={<LeadsManagement />} />
+              <Route path="/employees/*" element={<EmployeeManagement />} />
+              <Route path="/documents/*" element={<DocumentManagement />} />
             </Route>
           </Routes>
         </Router>
