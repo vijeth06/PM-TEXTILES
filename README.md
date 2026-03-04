@@ -44,6 +44,22 @@ A comprehensive Enterprise Resource Planning (ERP) system designed specifically 
 - **Export**: jsPDF, xlsx, file-saver, html2canvas
 - **State**: Context API + Hooks
 
+## 🌐 Deployment
+
+**Ready to Deploy to Render!** The application is fully configured for cloud deployment.
+
+### Quick Start
+- ⚡ **5 Minute Quick Deploy**: See [QUICK_DEPLOY.md](QUICK_DEPLOY.md)
+- 📚 **Detailed Guide**: See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
+### Key Features for Production
+- Automatic frontend build during deployment
+- Optimized backend serving static frontend assets
+- Environment-based configuration
+- MongoDB Atlas support
+- CORS and security headers configured
+- Auto-redeploy on GitHub push
+
 ## 📦 Installation & Quick Setup
 
 ### Prerequisites
@@ -82,7 +98,7 @@ npm install jspdf jspdf-autotable xlsx file-saver html2canvas
 ```
 
 #### Step 3: Configure Environment
-Copy `backend/.env.example` to `backend/.env` and update values for your machine.
+Copy `.env.example` to `.env` and update values for your machine.
 
 Create `.env` file in backend directory:
 ```env
