@@ -125,23 +125,27 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Root route
+// Root route - serve React app in production
 app.get('/', (req, res) => {
-  res.json({
-    message: 'PM Textiles - Production, Inventory, and Order Management System',
-    version: '3.0.0',
-    documentation: '/api/health',
-    features: {
-      analytics: ['Forecasting', 'KPIs', 'Cost Analysis'],
-      automation: ['Auto-Reorder', 'Smart Scheduling'],
-      procurement: ['RFQ Management', 'Supplier Performance'],
-      hr: ['Employee Management', 'Attendance', 'Training'],
-      maintenance: ['Preventive Maintenance', 'Asset Management'],
-      crm: ['Lead Management', 'Quotations', 'Customer Portal'],
-      documents: ['DMS', 'Version Control', 'Approvals'],
-      production: ['Recipe Management', 'Batch Traceability', 'Energy Tracking']
-    }
-  });
+  if (process.env.NODE_ENV === 'production') {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  } else {
+    res.json({
+      message: 'PM Textiles - Production, Inventory, and Order Management System',
+      version: '3.0.0',
+      documentation: '/api/health',
+      features: {
+        analytics: ['Forecasting', 'KPIs', 'Cost Analysis'],
+        automation: ['Auto-Reorder', 'Smart Scheduling'],
+        procurement: ['RFQ Management', 'Supplier Performance'],
+        hr: ['Employee Management', 'Attendance', 'Training'],
+        maintenance: ['Preventive Maintenance', 'Asset Management'],
+        crm: ['Lead Management', 'Quotations', 'Customer Portal'],
+        documents: ['DMS', 'Version Control', 'Approvals'],
+        production: ['Recipe Management', 'Batch Traceability', 'Energy Tracking']
+      }
+    });
+  }
 });
 
 // 404 handler
