@@ -36,15 +36,15 @@ const NotificationBell = () => {
       {/* Bell Icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+        className="relative p-2 text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors"
       >
         {unreadCount > 0 ? (
-          <BellAlertIcon className="h-6 w-6 text-blue-600 animate-pulse" />
+          <BellAlertIcon className="h-6 w-6 text-amber-500 animate-pulse" />
         ) : (
           <BellIcon className="h-6 w-6" />
         )}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -57,10 +57,10 @@ const NotificationBell = () => {
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+          <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+              <h3 className="text-lg font-bold text-gray-900">
                 Notifications {unreadCount > 0 && `(${unreadCount})`}
               </h3>
               <div className="flex space-x-2">
@@ -69,7 +69,7 @@ const NotificationBell = () => {
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-all"
                         title="Mark all as read"
                       >
                         <CheckIcon className="h-5 w-5" />
@@ -77,7 +77,7 @@ const NotificationBell = () => {
                     )}
                     <button
                       onClick={clearAll}
-                      className="text-sm text-red-600 hover:text-red-800"
+                      className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-all"
                       title="Clear all"
                     >
                       <TrashIcon className="h-5 w-5" />
@@ -86,7 +86,7 @@ const NotificationBell = () => {
                 )}
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
@@ -98,15 +98,15 @@ const NotificationBell = () => {
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <BellIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>No notifications</p>
+                  <p className="font-medium">No notifications</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
                   {notifications.map((notification) => (
                     <div
                       key={notification._id}
-                      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.isRead ? 'bg-blue-50' : ''
+                      className={`p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${
+                        !notification.isRead ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                       }`}
                       onClick={() => {
                         if (!notification.isRead) {
@@ -120,11 +120,11 @@ const NotificationBell = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <p className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                            <p className={`text-sm font-semibold ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
                               {notification.title}
                             </p>
                             {!notification.isRead && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full ml-2" />
+                              <div className="w-2.5 h-2.5 bg-blue-500 rounded-full ml-2 shadow-sm animate-pulse" />
                             )}
                           </div>
                           <p className="text-sm text-gray-600 line-clamp-2">
@@ -139,7 +139,7 @@ const NotificationBell = () => {
                                 e.stopPropagation();
                                 deleteNotification(notification._id);
                               }}
-                              className="text-xs text-red-500 hover:text-red-700"
+                              className="text-xs text-red-500 hover:text-red-700 hover:bg-red-100/50 px-2 py-1 rounded transition-all"
                             >
                               Delete
                             </button>

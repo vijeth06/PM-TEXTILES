@@ -62,10 +62,10 @@ const Suppliers = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Supplier Management</h1>
-          <p className="text-gray-600 mt-1">Manage supplier relationships and performance</p>
+          <h1 className="text-4xl font-bold text-blue-800">Supplier Management</h1>
+          <p className="text-gray-600 mt-2 font-medium">Manage supplier relationships and track performance metrics</p>
         </div>
-        <Button onClick={handleCreate} className="flex items-center">
+        <Button onClick={handleCreate} className="flex items-center bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition-all">
           <PlusIcon className="h-5 w-5 mr-2" />
           New Supplier
         </Button>
@@ -92,7 +92,7 @@ const Suppliers = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setFilters({ category: '' })}
-                className="w-full"
+                className="w-full border-green-300 text-green-600 hover:bg-green-50"
               >
                 Clear Filters
               </Button>

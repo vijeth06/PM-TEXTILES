@@ -108,8 +108,8 @@ const Inventory = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
-          <p className="text-gray-600 mt-1">Track and manage stock levels with FIFO</p>
+          <h1 className="text-4xl font-bold text-blue-800">Inventory Management</h1>
+          <p className="text-gray-600 mt-2 font-medium">Track and manage stock levels with FIFO methodology</p>
         </div>
         <div className="flex space-x-3">
           <ExportButton 

@@ -62,10 +62,10 @@ const Customers = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
-          <p className="text-gray-600 mt-1">Manage customer master data and relationships</p>
+          <h1 className="text-4xl font-bold text-blue-800">Customer Management</h1>
+          <p className="text-gray-600 mt-2 font-medium">Manage customer master data and business relationships</p>
         </div>
-        <Button onClick={handleCreate} className="flex items-center">
+        <Button onClick={handleCreate} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition-all">
           <PlusIcon className="h-5 w-5 mr-2" />
           New Customer
         </Button>

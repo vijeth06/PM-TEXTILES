@@ -35,6 +35,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
+  { name: 'Textile Production', href: '/textile-production', icon: CubeIcon, iconSolid: CubeIconSolid },
   { name: 'Production', href: '/production', icon: CubeIcon, iconSolid: CubeIconSolid, permission: 'view_production' },
   { name: 'Production Execution', href: '/production-execution', icon: PlayIcon, iconSolid: PlayIconSolid, permission: 'manage_production' },
   { name: 'Inventory', href: '/inventory', icon: ArchiveBoxIcon, iconSolid: ArchiveBoxIconSolid, permission: 'view_inventory' },
@@ -71,10 +72,10 @@ const Layout = () => {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" onClick={() => setSidebarOpen(false)}></div>
-          <div className="fixed inset-y-0 left-0 flex flex-col w-72 bg-white shadow-xl">
-            <div className="flex items-center justify-between h-16 px-6 bg-blue-600 border-b border-blue-700">
+          <div className="fixed inset-y-0 left-0 flex flex-col w-72 bg-white shadow-2xl">
+            <div className="flex items-center justify-between h-16 px-6 bg-blue-800 border-b border-blue-900">
               <div className="flex items-center space-x-3">
-                <div className="h-9 w-9 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
                   <CubeIcon className="h-5 w-5 text-white" />
                 </div>
                 <h1 className="text-xl font-bold text-white">PM Textiles</h1>
@@ -95,8 +96,8 @@ const Layout = () => {
                     onClick={() => setSidebarOpen(false)}
                     className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent hover:border-gray-200'
+                        ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700 shadow-sm'
+                        : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent hover:border-blue-300'
                     }`}
                   >
                     {isActive ? (
@@ -110,8 +111,8 @@ const Layout = () => {
               })}
             </nav>
             <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center space-x-3 px-2 py-2">
-                <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="flex items-center space-x-3 px-2 py-2 rounded-lg hover:bg-white transition-colors">
+                <div className="h-9 w-9 rounded-full bg-blue-700 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                   {user?.fullName?.charAt(0)}
                 </div>
                 <div className="flex-1">
@@ -126,9 +127,9 @@ const Layout = () => {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-sm">
-          <div className="flex items-center h-16 px-6 bg-blue-600 border-b border-blue-700">
-            <div className="h-9 w-9 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center mr-3">
+        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-lg">
+          <div className="flex items-center h-16 px-6 bg-blue-800 border-b border-blue-900">
+            <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center mr-3 border border-white/20">
               <CubeIcon className="h-5 w-5 text-white" />
             </div>
             <h1 className="text-lg font-bold text-white">PM Textiles ERP</h1>
@@ -144,8 +145,8 @@ const Layout = () => {
                   to={item.href}
                   className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent hover:border-gray-200'
+                      ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700 shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent hover:border-blue-300'
                   }`}
                 >
                   {isActive ? (
@@ -159,8 +160,8 @@ const Layout = () => {
             })}
           </nav>
           <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center space-x-3 px-2 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+            <div className="flex items-center space-x-3 px-2 py-2 rounded-lg hover:bg-white transition-colors cursor-pointer group shadow-sm">
+              <div className="h-10 w-10 rounded-full bg-blue-700 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                 {user?.fullName?.charAt(0)}
               </div>
               <div className="flex-1">
@@ -177,7 +178,7 @@ const Layout = () => {
         {/* Top navigation */}
         <div className="sticky top-0 z-10 flex h-16 bg-white border-b border-gray-200 shadow-sm">
           <button
-            className="px-4 text-gray-500 hover:text-gray-700 focus:outline-none lg:hidden"
+            className="px-4 text-gray-600 hover:text-blue-700 focus:outline-none lg:hidden transition-colors"
             onClick={() => setSidebarOpen(true)}
           >
             <Bars3Icon className="h-6 w-6" />
@@ -194,27 +195,27 @@ const Layout = () => {
                 <input
                   type="search"
                   placeholder="Search..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 />
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-4">
               <NotificationBell />
               
-              <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-xs">
+              <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 shadow-sm">
+                <div className="h-8 w-8 rounded-full bg-blue-700 flex items-center justify-center text-white font-semibold text-xs shadow-sm">
                   {user?.fullName?.charAt(0)}
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+                  <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
+                  <p className="text-xs text-gray-600 capitalize">{user?.role?.replace('_', ' ')}</p>
                 </div>
               </div>
               
               <button
                 onClick={handleLogout}
-                className="flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 border border-transparent hover:border-red-200"
               >
                 <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
                 Logout
@@ -224,7 +225,7 @@ const Layout = () => {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 bg-gray-50">
           <Outlet />
         </main>
       </div>

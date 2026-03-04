@@ -50,6 +50,11 @@ const leadRoutes = require('./routes/leads');
 const quotationRoutes = require('./routes/quotations');
 const documentRoutes = require('./routes/documents');
 
+// Textile-specific Routes
+const loomProductionRoutes = require('./routes/loomProduction');
+const dyeingRoutes = require('./routes/dyeing');
+const colorLabRoutes = require('./routes/colorLab');
+
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -115,6 +120,11 @@ app.use('/api/crm/leads', leadRoutes);
 app.use('/api/sales/quotations', quotationRoutes);
 app.use('/api/documents', documentRoutes);
 
+// Textile-specific Routes
+app.use('/api/textile/loom-production', loomProductionRoutes);
+app.use('/api/textile/dyeing', dyeingRoutes);
+app.use('/api/textile/color-lab', colorLabRoutes);
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({
@@ -142,7 +152,8 @@ app.get('/', (req, res) => {
         maintenance: ['Preventive Maintenance', 'Asset Management'],
         crm: ['Lead Management', 'Quotations', 'Customer Portal'],
         documents: ['DMS', 'Version Control', 'Approvals'],
-        production: ['Recipe Management', 'Batch Traceability', 'Energy Tracking']
+        production: ['Recipe Management', 'Batch Traceability', 'Energy Tracking'],
+        textile: ['Loom Production', 'Dyeing Process', 'Color Lab', 'Shade Matching']
       }
     });
   }

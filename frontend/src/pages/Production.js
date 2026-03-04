@@ -99,10 +99,10 @@ const Production = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Production Management</h1>
-          <p className="text-gray-600 mt-1">Manage production plans and track stages</p>
+          <h1 className="text-4xl font-bold text-blue-800">Production Management</h1>
+          <p className="text-gray-600 mt-2 font-medium">Plan and track manufacturing stages in real-time</p>
         </div>
-        <Button onClick={handleCreatePlan} className="flex items-center">
+        <Button onClick={handleCreatePlan} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition-all">
           <PlusIcon className="h-5 w-5 mr-2" />
           New Production Plan
         </Button>
@@ -141,7 +141,7 @@ const Production = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setFilters({ status: '', priority: '' })}
-                className="w-full"
+                className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
               >
                 Clear Filters
               </Button>
@@ -206,13 +206,13 @@ const Production = () => {
                       <Td>{getPriorityBadge(plan.priority)}</Td>
                       <Td>
                         <div className="flex items-center">
-                          <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2.5 mr-2">
                             <div
-                              className="bg-blue-600 h-2 rounded-full"
+                              className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
                               style={{ width: `${plan.completionPercent || 0}%` }}
                             ></div>
                           </div>
-                          <span className="text-xs text-gray-600">{plan.completionPercent || 0}%</span>
+                          <span className="text-xs font-semibold text-blue-700">{plan.completionPercent || 0}%</span>
                         </div>
                       </Td>
                       <Td>

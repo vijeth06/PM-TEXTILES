@@ -22,6 +22,8 @@ import Analytics from './pages/Analytics';
 import LeadsManagement from './pages/LeadsManagement';
 import EmployeeManagement from './pages/EmployeeManagement';
 import DocumentManagement from './pages/DocumentManagement';
+import TextileProduction from './pages/TextileProduction';
+import RoleBasedDashboard from './pages/RoleBasedDashboard';
 
 // Components
 import Layout from './components/Layout';
@@ -38,10 +40,12 @@ function App() {
             
             <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<EnhancedDashboard />} />
+              <Route path="/dashboard" element={<RoleBasedDashboard />} />
+              <Route path="/dashboard-enhanced" element={<EnhancedDashboard />} />
               <Route path="/dashboard-old" element={<DashboardNew />} />
               <Route path="/production/*" element={<Production />} />
               <Route path="/production-execution/*" element={<ProductionExecution />} />
+              <Route path="/textile-production/*" element={<TextileProduction />} />
               <Route path="/inventory/*" element={<Inventory />} />
               <Route path="/orders/*" element={<Orders />} />
               <Route path="/customers/*" element={<Customers />} />
