@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auditAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { 
-  ClipboardDocumentListIcon, FunnelIcon, MagnifyingGlassIcon 
+  ClipboardDocumentListIcon, FunnelIcon
 } from '@heroicons/react/24/outline';
 import { 
   Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, 
@@ -29,24 +29,41 @@ const AuditTrail = () => {
 
   useEffect(() => {
     fetchLogs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination.page]);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await auditAPI.getAuditLogs({
-        ...filters,
+      const queryParams = {
         page: pagination.page,
         limit: pagination.limit
-      });
-      setLogs(response.data.data || []);
-      setPagination({
-        ...pagination,
-        total: response.data.total || 0,
-        pages: response.data.pages || 0
-      });
+      };
+
+      // Add filters only if they have values
+      if (filters.action) queryParams.action = filters.action;
+      if (filters.entity) queryParams.entity = filters.entity;
+      if (filters.user) queryParams.user = filters.user;
+      if (filters.startDate) queryParams.startDate = filters.startDate;
+      if (filters.endDate) queryParams.endDate = filters.endDate;
+
+      const response = await auditAPI.getAuditLogs(queryParams);
+      
+      if (response.data && response.data.data) {
+        setLogs(response.data.data);
+        setPagination({
+          page: response.data.page || pagination.page,
+          limit: pagination.limit,
+          total: response.data.total || 0,
+          pages: response.data.pages || 0
+        });
+      } else {
+        setLogs([]);
+      }
     } catch (error) {
+      console.error('Error fetching audit logs:', error);
       toast.error('Failed to fetch audit logs');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -75,13 +92,15 @@ const AuditTrail = () => {
       delete: 'danger',
       login: 'info',
       logout: 'default',
-      view: 'default'
+      view: 'default',
+      export: 'info',
+      import: 'warning'
     };
     return <Badge variant={variants[action] || 'default'}>{action.toUpperCase()}</Badge>;
   };
 
   const getEntityBadge = (entity) => {
-    return <Badge variant="info">{entity.replace('_', ' ').toUpperCase()}</Badge>;
+    return <Badge variant="info">{entity.replace(/_/g, ' ').toUpperCase()}</Badge>;
   };
 
   return (
@@ -89,6 +108,38 @@ const AuditTrail = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Audit Trail</h1>
         <p className="text-gray-600 mt-1">Track all system activities and changes</p>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardBody>
+            <p className="text-sm text-gray-600">Total Activities</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{pagination.total}</p>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardBody>
+            <p className="text-sm text-gray-600">Period</p>
+            <p className="text-sm font-medium text-gray-900 mt-1">
+              {filters.startDate} to {filters.endDate}
+            </p>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardBody>
+            <p className="text-sm text-gray-600">Records Shown</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{logs.length}</p>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardBody>
+            <p className="text-sm text-gray-600">Pages</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {pagination.page} / {pagination.pages || 1}
+            </p>
+          </CardBody>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -109,7 +160,10 @@ const AuditTrail = () => {
             <Select
               label="Action"
               value={filters.action}
-              onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, action: e.target.value });
+                setPagination({ ...pagination, page: 1 });
+              }}
             >
               <option value="">All Actions</option>
               <option value="create">Create</option>
@@ -118,12 +172,17 @@ const AuditTrail = () => {
               <option value="login">Login</option>
               <option value="logout">Logout</option>
               <option value="view">View</option>
+              <option value="export">Export</option>
+              <option value="import">Import</option>
             </Select>
 
             <Select
               label="Entity Type"
               value={filters.entity}
-              onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, entity: e.target.value });
+                setPagination({ ...pagination, page: 1 });
+              }}
             >
               <option value="">All Entities</option>
               <option value="order">Orders</option>
@@ -138,7 +197,10 @@ const AuditTrail = () => {
               label="User"
               placeholder="Search by username..."
               value={filters.user}
-              onChange={(e) => setFilters({ ...filters, user: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, user: e.target.value });
+                setPagination({ ...pagination, page: 1 });
+              }}
             />
 
             <div className="col-span-1">

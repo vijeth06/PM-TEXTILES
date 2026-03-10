@@ -97,23 +97,6 @@ exports.createQualityCheck = async (req, res) => {
         timestamp: new Date()
       });
     }
-    // Emit real-time events
-    broadcastToAll('quality_check_created', {
-      type,
-      result,
-      batchId: batch,
-      timestamp: new Date()
-    });
-
-    // Notify QA team if failed
-    if (result === 'failed') {
-      emitToRole('qa_inspector', 'quality_check_failed', {
-        type,
-        batchId: batch,
-        defects,
-        timestamp: new Date()
-      });
-    }
 
     res.status(201).json({ success: true, data: check });
   } catch (error) {

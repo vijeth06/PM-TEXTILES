@@ -62,7 +62,23 @@ const userSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  // Two-Factor Authentication fields
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorSecret: {
+    type: String,
+    select: false // Don't return this in queries by default
+  },
+  backupCodes: [{
+    code: String,
+    used: {
+      type: Boolean,
+      default: false
+    }
+  }]
 }, {
   timestamps: true
 });

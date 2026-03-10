@@ -180,7 +180,7 @@ const Dashboard = () => {
               <div key={stage._id} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
                 <div>
                   <p className="font-medium text-gray-900">{stage.planNo}</p>
-                  <p className="text-sm text-gray-600 capitalize">{stage.stageName.replace('_', ' ')}</p>
+                  <p className="text-sm text-gray-600 capitalize">{stage.stageName.replace(/_/g, ' ')}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{stage.outputQuantity}</p>

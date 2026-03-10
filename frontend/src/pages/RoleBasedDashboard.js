@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { StatCard, Button, SectionHeader, Card } from '../components/UIComponents';
+import { useNavigate } from 'react-router-dom';
+import { dashboardAPI, ordersAPI, inventoryAPI } from '../services/api';
+import { StatCard, SectionHeader, Card } from '../components/UIComponents';
 import {
   ChartBarIcon,
   CogIcon,
   TruckIcon,
-  UserGroupIcon,
   DocumentTextIcon,
   BeakerIcon,
   WrenchScrewdriverIcon,
@@ -19,44 +20,83 @@ const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'
 
 export default function RoleBasedDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [trendData, setTrendData] = useState([]);
+  const [orderDist, setOrderDist] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
-    // Mock data - replace with actual API calls
-    setStats({
-      production: {
-        today: 15420,
-        target: 18000,
-        efficiency: 85.7,
-        looms: {total: 120, running: 102, idle: 12, breakdown: 6}
-      },
-      quality: {
-        firstQuality: 92.3,
-        defectRate: 3.2,
-        inspected: 8540
-      },
-      inventory: {
-        yarnStock: 45000,
-        fabricStock: 32000,
-        alerts: 12
-      },
-      orders: {
-        pending: 45,
-        inProduction: 28,
-        completed: 156
-      },
-      dyeing: {
-        batches: 8,
-        shadeOk: 6,
-        redip: 2
+    try {
+      const [metricsRes, trendsRes, orderDistRes, ordersRes, inventoryRes] = await Promise.allSettled([
+        dashboardAPI.getMetrics(),
+        dashboardAPI.getTrends({ period: 'weekly' }),
+        dashboardAPI.getOrderStatusDistribution(),
+        ordersAPI.getOrders({ limit: 5 }),
+        inventoryAPI.getAlerts()
+      ]);
+
+      const metrics = metricsRes.status === 'fulfilled' ? metricsRes.value.data.data : {};
+      const trends = trendsRes.status === 'fulfilled' ? trendsRes.value.data.data : {};
+      const dist = orderDistRes.status === 'fulfilled' ? orderDistRes.value.data.data : [];
+      const orders = ordersRes.status === 'fulfilled' ? ordersRes.value.data : {};
+      const alerts = inventoryRes.status === 'fulfilled' ? inventoryRes.value.data.data : [];
+
+      setStats({
+        production: {
+          today: metrics.production?.totalProduction || 0,
+          target: metrics.production?.targetQuantity || 0,
+          efficiency: metrics.production?.avgEfficiency || 0,
+          activePlans: metrics.production?.activePlans || 0,
+          completedPlans: metrics.production?.completedPlans || 0,
+          looms: { total: metrics.machines?.total || 0, running: metrics.machines?.running || 0, idle: metrics.machines?.idle || 0, breakdown: metrics.machines?.breakdown || 0 }
+        },
+        quality: {
+          firstQuality: metrics.quality?.passRate || 0,
+          defectRate: metrics.quality?.failRate || 0,
+          inspected: metrics.quality?.totalChecks || 0,
+          pendingTests: metrics.quality?.pendingChecks || 0
+        },
+        inventory: {
+          yarnStock: metrics.inventory?.yarnStock || 0,
+          fabricStock: metrics.inventory?.fabricStock || 0,
+          alerts: alerts.length || 0,
+          totalValue: metrics.inventory?.totalValue || 0
+        },
+        orders: {
+          pending: orders.data?.filter(o => o.status === 'pending').length || 0,
+          total: orders.total || 0,
+          inProduction: orders.data?.filter(o => o.status === 'in_production').length || 0,
+          completed: orders.data?.filter(o => o.status === 'delivered').length || 0
+        }
+      });
+
+      if (trends.production) {
+        setTrendData(trends.production.map(t => ({
+          date: t._id,
+          production: t.totalOutput || 0,
+          target: metrics.production?.targetQuantity || 0
+        })));
       }
-    });
-    setLoading(false);
+
+      if (dist.length > 0) {
+        setOrderDist(dist.map(d => ({ name: d._id?.replace(/_/g, ' ') || 'unknown', value: d.count })));
+      }
+    } catch (error) {
+      console.error('Dashboard data fetch error:', error);
+      setStats({
+        production: { today: 0, target: 0, efficiency: 0, activePlans: 0, completedPlans: 0, looms: { total: 0, running: 0, idle: 0, breakdown: 0 } },
+        quality: { firstQuality: 0, defectRate: 0, inspected: 0, pendingTests: 0 },
+        inventory: { yarnStock: 0, fabricStock: 0, alerts: 0, totalValue: 0 },
+        orders: { pending: 0, total: 0, inProduction: 0, completed: 0 }
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderProductionManagerDashboard = () => (
@@ -69,8 +109,6 @@ export default function RoleBasedDashboard() {
           unit="m"
           color="blue"
           icon={ChartBarIcon}
-          trend="up"
-          change="+12.5%"
         />
         <StatCard
           title="Loom Efficiency"
@@ -78,8 +116,6 @@ export default function RoleBasedDashboard() {
           unit="%"
           color="teal"
           icon={CogIcon}
-          trend="up"
-          change="+5.2%"
         />
         <StatCard
           title="First Quality"
@@ -87,8 +123,6 @@ export default function RoleBasedDashboard() {
           unit="%"
           color="green"
           icon={ClipboardDocumentCheckIcon}
-          trend="up"
-          change="+2.1%"
         />
         <StatCard
           title="Pending Orders"
@@ -96,8 +130,6 @@ export default function RoleBasedDashboard() {
           unit="orders"
           color="amber"
           icon={DocumentTextIcon}
-          trend="down"
-          change="-8.3%"
         />
       </div>
 
@@ -107,15 +139,7 @@ export default function RoleBasedDashboard() {
         <Card variant="elevated" className="p-6">
           <SectionHeader title="Production Trend" subtitle="Last 7 Days" />
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={[
-              {day: 'Mon', production: 14500, target: 15000},
-              {day: 'Tue', production: 15200, target: 15000},
-              {day: 'Wed', production: 14800, target: 15000},
-              {day: 'Thu', production: 15600, target: 15000},
-              {day: 'Fri', production: 15100, target: 15000},
-              {day: 'Sat', production: 15400, target: 15000},
-              {day: 'Sun', production: 15420, target: 15000}
-            ]}>
+            <AreaChart data={trendData.length > 0 ? trendData : [{date: 'No data', production: 0, target: 0}]}>
               <defs>
                 <linearGradient id="colorProduction" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8}/>
@@ -123,7 +147,7 @@ export default function RoleBasedDashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day" />
+              <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
               <Legend />
@@ -160,16 +184,44 @@ export default function RoleBasedDashboard() {
             </PieChart>
           </ResponsiveContainer>
         </Card>
+
+        {/* Order Distribution */}
+        <Card variant="elevated" className="p-6">
+          <SectionHeader title="Order Distribution" />
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={orderDist.length > 0 ? orderDist : [
+                  {name: 'Pending', value: stats.orders.pending},
+                  {name: 'In Production', value: stats.orders.inProduction},
+                  {name: 'Completed', value: stats.orders.completed}
+                ]}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {COLORS.map((color, index) => (
+                  <Cell key={`cell-${index}`} fill={color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
       </div>
 
       {/* Quick Actions */}
       <Card variant="elevated" className="p-6">
         <SectionHeader title="Quick Actions" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <QuickActionButton icon={RocketLaunchIcon} label="Start Production" color="blue" />
-          <QuickActionButton icon={ClipboardDocumentCheckIcon} label="Quality Check" color="teal" />
-          <QuickActionButton icon={WrenchScrewdriverIcon} label="Machine Status" color="amber" />
-          <QuickActionButton icon={DocumentTextIcon} label="View Reports" color="purple" />
+          <QuickActionButton icon={RocketLaunchIcon} label="Start Production" color="blue" onClick={() => navigate('/production')} />
+          <QuickActionButton icon={ClipboardDocumentCheckIcon} label="Quality Check" color="teal" onClick={() => navigate('/production-execution')} />
+          <QuickActionButton icon={WrenchScrewdriverIcon} label="Machine Status" color="amber" onClick={() => navigate('/textile-production')} />
+          <QuickActionButton icon={DocumentTextIcon} label="View Reports" color="purple" onClick={() => navigate('/reports')} />
         </div>
       </Card>
     </div>
@@ -184,8 +236,6 @@ export default function RoleBasedDashboard() {
           unit="meters"
           color="blue"
           icon={BeakerIcon}
-          trend="up"
-          change="+7.2%"
         />
         <StatCard
           title="First Quality"
@@ -193,8 +243,6 @@ export default function RoleBasedDashboard() {
           unit="%"
           color="green"
           icon={ClipboardDocumentCheckIcon}
-          trend="up"
-          change="+3.4%"
         />
         <StatCard
           title="Defect Rate"
@@ -202,17 +250,13 @@ export default function RoleBasedDashboard() {
           unit="%"
           color="red"
           icon={ChartBarIcon}
-          trend="down"
-          change="-1.2%"
         />
         <StatCard
           title="Pending Tests"
-          value="23"
+          value={stats.quality.pendingTests}
           unit="items"
           color="amber"
           icon={DocumentTextIcon}
-          trend="up"
-          change="+4.5%"
         />
       </div>
 
@@ -251,8 +295,6 @@ export default function RoleBasedDashboard() {
           unit="k kg"
           color="blue"
           icon={TruckIcon}
-          trend="up"
-          change="+5.8%"
         />
         <StatCard
           title="Fabric Stock"
@@ -260,8 +302,6 @@ export default function RoleBasedDashboard() {
           unit="k m"
           color="green"
           icon={DocumentTextIcon}
-          trend="down"
-          change="-3.2%"
         />
         <StatCard
           title="Low Stock Alerts"
@@ -269,17 +309,13 @@ export default function RoleBasedDashboard() {
           unit="items"
           color="red"
           icon={ChartBarIcon}
-          trend="up"
-          change="+2.1%"
         />
         <StatCard
-          title="Pending Transfers"
-          value="8"
-          unit="transfers"
+          title="Inventory Value"
+          value={(stats.inventory.totalValue / 100000).toFixed(1)}
+          unit="L"
           color="amber"
-          icon={TruckIcon}
-          trend="down"
-          change="-6.4%"
+          icon={CurrencyDollarIcon}
         />
       </div>
 
@@ -334,12 +370,12 @@ export default function RoleBasedDashboard() {
         {user?.role === 'production_manager' && renderProductionManagerDashboard()}
         {user?.role === 'qa_inspector' && renderQualityInspectorDashboard()}
         {user?.role === 'store_manager' && renderStoreManagerDashboard()}
-        {(user?.role === 'admin' || user?.role === 'management') && renderProductionManagerDashboard()}
+        {(user?.role === 'admin' || user?.role === 'management' || user?.role === 'sales_manager' || user?.role === 'accountant' || !['production_manager', 'qa_inspector', 'store_manager'].includes(user?.role)) && renderProductionManagerDashboard()}
       </div>
     );
   }
 
-function QuickActionButton({ icon: Icon, label, color }) {
+function QuickActionButton({ icon: Icon, label, color, onClick }) {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200',
     teal: 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200',
@@ -350,7 +386,7 @@ function QuickActionButton({ icon: Icon, label, color }) {
   };
 
   return (
-    <button className={`${colorClasses[color]} p-4 rounded-lg transition-all hover:shadow-sm flex flex-col items-center justify-center space-y-2`}>
+    <button onClick={onClick} className={`${colorClasses[color]} p-4 rounded-lg transition-all hover:shadow-sm flex flex-col items-center justify-center space-y-2`}>
       <Icon className="h-8 w-8" />
       <span className="text-sm font-semibold">{label}</span>
     </button>

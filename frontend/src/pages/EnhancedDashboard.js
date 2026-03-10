@@ -16,7 +16,6 @@ import {
   ShoppingCartIcon,
   CurrencyDollarIcon,
   CheckCircleIcon,
-  TruckIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';

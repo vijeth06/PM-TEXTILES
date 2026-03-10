@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { costAnalysisAPI } from '../../services/analyticsAPI';
-import { CurrencyDollarIcon, ChartPieIcon } from '@heroicons/react/24/outline';
+import { ChartPieIcon } from '@heroicons/react/24/outline';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];

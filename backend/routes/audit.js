@@ -12,8 +12,8 @@ router.use(protect);
 router.use(authorize('admin'));
 
 router.get('/', getAuditLogs);
-router.get('/:id', getAuditLog);
 router.get('/user/:userId', getUserActivity);
 router.get('/entity/:entityType/:entityId', getEntityHistory);
+router.get('/:id', getAuditLog);
 
 module.exports = router;

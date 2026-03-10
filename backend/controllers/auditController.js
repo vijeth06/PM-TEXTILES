@@ -10,14 +10,35 @@ exports.getAuditLogs = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const filter = {};
+  const allowedActions = ['create', 'update', 'delete', 'login', 'logout', 'view', 'export', 'import'];
   
-  if (req.query.action) filter.action = req.query.action;
+  if (req.query.action) {
+    if (!allowedActions.includes(req.query.action)) {
+      return res.json({
+        success: true,
+        data: [],
+        total: 0,
+        page,
+        pages: 0
+      });
+    }
+    filter.action = req.query.action;
+  }
   if (req.query.entity) filter.entityType = req.query.entity;
   if (req.query.user) {
     // Search by username
     const User = require('../models/User');
     const user = await User.findOne({ username: { $regex: req.query.user, $options: 'i' } });
-    if (user) filter.user = user._id;
+    if (!user) {
+      return res.json({
+        success: true,
+        data: [],
+        total: 0,
+        page,
+        pages: 0
+      });
+    }
+    filter.user = user._id;
   }
   if (req.query.startDate || req.query.endDate) {
     filter.timestamp = {};

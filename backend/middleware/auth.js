@@ -64,6 +64,15 @@ exports.authorize = (...roles) => {
 // Check specific permissions
 exports.checkPermission = (...permissions) => {
   return (req, res, next) => {
+    // Admin role should never be blocked by granular permission checks.
+    if (req.user?.role === 'admin') {
+      return next();
+    }
+
+    if (!permissions || permissions.length === 0) {
+      return next();
+    }
+
     const userPermissions = req.user.permissions || [];
     
     const hasPermission = permissions.some(permission => 

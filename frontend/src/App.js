@@ -1,33 +1,45 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
-// Pages
-import Login from './pages/Login';
-import DashboardNew from './pages/DashboardNew';
-import EnhancedDashboard from './pages/EnhancedDashboard';
-import Production from './pages/Production';
-import ProductionExecution from './pages/ProductionExecution';
-import Inventory from './pages/Inventory';
-import Orders from './pages/Orders';
-import Customers from './pages/Customers';
-import Suppliers from './pages/Suppliers';
-import ReportsNew from './pages/ReportsNew';
-import Finance from './pages/Finance';
-import Settings from './pages/Settings';
-import AuditTrail from './pages/AuditTrail';
-import Analytics from './pages/Analytics';
-import LeadsManagement from './pages/LeadsManagement';
-import EmployeeManagement from './pages/EmployeeManagement';
-import DocumentManagement from './pages/DocumentManagement';
-import TextileProduction from './pages/TextileProduction';
-import RoleBasedDashboard from './pages/RoleBasedDashboard';
-
 // Components
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
+
+// Eager-loaded critical pages
+import Login from './pages/Login';
+
+// Lazy-loaded pages for code splitting
+const DashboardNew = lazy(() => import('./pages/DashboardNew'));
+const EnhancedDashboard = lazy(() => import('./pages/EnhancedDashboard'));
+const Production = lazy(() => import('./pages/Production'));
+const ProductionExecution = lazy(() => import('./pages/ProductionExecution'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Orders = lazy(() => import('./pages/Orders'));
+const Customers = lazy(() => import('./pages/Customers'));
+const Suppliers = lazy(() => import('./pages/Suppliers'));
+const ReportsNew = lazy(() => import('./pages/ReportsNew'));
+const Finance = lazy(() => import('./pages/Finance'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AuditTrail = lazy(() => import('./pages/AuditTrail'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const LeadsManagement = lazy(() => import('./pages/LeadsManagement'));
+const EmployeeManagement = lazy(() => import('./pages/EmployeeManagement'));
+const DocumentManagement = lazy(() => import('./pages/DocumentManagement'));
+const TextileProduction = lazy(() => import('./pages/TextileProduction'));
+const RoleBasedDashboard = lazy(() => import('./pages/RoleBasedDashboard'));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-screen bg-gray-50">
+    <div className="text-center">
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+      <p className="text-gray-600">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
@@ -35,31 +47,33 @@ function App() {
       <NotificationProvider>
         <Router>
           <Toaster position="top-right" />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            
-            <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<RoleBasedDashboard />} />
-              <Route path="/dashboard-enhanced" element={<EnhancedDashboard />} />
-              <Route path="/dashboard-old" element={<DashboardNew />} />
-              <Route path="/production/*" element={<Production />} />
-              <Route path="/production-execution/*" element={<ProductionExecution />} />
-              <Route path="/textile-production/*" element={<TextileProduction />} />
-              <Route path="/inventory/*" element={<Inventory />} />
-              <Route path="/orders/*" element={<Orders />} />
-              <Route path="/customers/*" element={<Customers />} />
-              <Route path="/suppliers/*" element={<Suppliers />} />
-              <Route path="/reports/*" element={<ReportsNew />} />
-              <Route path="/finance/*" element={<Finance />} />
-              <Route path="/settings/*" element={<Settings />} />
-              <Route path="/audit/*" element={<AuditTrail />} />
-              <Route path="/analytics/*" element={<Analytics />} />
-              <Route path="/leads/*" element={<LeadsManagement />} />
-              <Route path="/employees/*" element={<EmployeeManagement />} />
-              <Route path="/documents/*" element={<DocumentManagement />} />
-            </Route>
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<RoleBasedDashboard />} />
+                <Route path="/dashboard-enhanced" element={<EnhancedDashboard />} />
+                <Route path="/dashboard-old" element={<DashboardNew />} />
+                <Route path="/production/*" element={<Production />} />
+                <Route path="/production-execution/*" element={<ProductionExecution />} />
+                <Route path="/textile-production/*" element={<TextileProduction />} />
+                <Route path="/inventory/*" element={<Inventory />} />
+                <Route path="/orders/*" element={<Orders />} />
+                <Route path="/customers/*" element={<Customers />} />
+                <Route path="/suppliers/*" element={<Suppliers />} />
+                <Route path="/reports/*" element={<ReportsNew />} />
+                <Route path="/finance/*" element={<Finance />} />
+                <Route path="/settings/*" element={<Settings />} />
+                <Route path="/audit/*" element={<AuditTrail />} />
+                <Route path="/analytics/*" element={<Analytics />} />
+                <Route path="/leads/*" element={<LeadsManagement />} />
+                <Route path="/employees/*" element={<EmployeeManagement />} />
+                <Route path="/documents/*" element={<DocumentManagement />} />
+              </Route>
+            </Routes>
+          </Suspense>
         </Router>
       </NotificationProvider>
     </AuthProvider>

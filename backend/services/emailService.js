@@ -18,7 +18,12 @@ const hasPlaceholderCreds =
   /your-app-password/i.test(process.env.EMAIL_PASSWORD || '') ||
   /example/i.test(process.env.EMAIL_USER || '');
 
-if (hasEmailCreds && !hasPlaceholderCreds) {
+const initEmailService = () => {
+  if (!hasEmailCreds || hasPlaceholderCreds) {
+    console.log('ℹ️ Email service disabled (missing or placeholder EMAIL credentials)');
+    return false;
+  }
+
   transporter.verify((error) => {
     if (error) {
       console.log('Email service error:', error);
@@ -26,9 +31,9 @@ if (hasEmailCreds && !hasPlaceholderCreds) {
       console.log('✅ Email service is ready');
     }
   });
-} else {
-  console.log('ℹ️ Email service disabled (missing or placeholder EMAIL credentials)');
-}
+
+  return true;
+};
 
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
@@ -218,6 +223,7 @@ const emailTemplates = {
 };
 
 module.exports = {
+  initEmailService,
   sendEmail,
   emailTemplates
 };

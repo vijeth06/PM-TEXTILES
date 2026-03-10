@@ -5,7 +5,8 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   MinusIcon,
-  CalendarIcon
+  CalendarIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import {
   BarChart,
@@ -24,25 +25,20 @@ import {
 } from 'recharts';
 
 export default function KPIsTab() {
-  const [kpis, setKpis] = useState([]);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [showCalculateModal, setShowCalculateModal] = useState(false);
-
-  const kpiTypes = [
-    { value: 'oee', label: 'OEE (Overall Equipment Effectiveness)', color: 'blue' },
-    { value: 'fpy', label: 'FPY (First Pass Yield)', color: 'green' },
-    { value: 'otd', label: 'OTD (On-Time Delivery)', color: 'purple' },
-    { value: 'production_efficiency', label: 'Production Efficiency', color: 'yellow' },
-    { value: 'quality_rate', label: 'Quality Rate', color: 'red' },
-    { value: 'machine_utilization', label: 'Machine Utilization', color: 'indigo' },
-    { value: 'wastage_percentage', label: 'Wastage Percentage', color: 'orange' },
-    { value: 'customer_satisfaction', label: 'Customer Satisfaction', color: 'pink' }
-  ];
+  const [kpiType, setKpiType] = useState('oee');
+  const [kpiForm, setKpiForm] = useState({
+    machineId: '',
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
 
   useEffect(() => {
     fetchKPIDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod]);
 
   const fetchKPIDashboard = async () => {
@@ -57,37 +53,49 @@ export default function KPIsTab() {
     }
   };
 
-  const handleCalculateKPI = async (type) => {
+  const openCalculateModal = (type) => {
+    setKpiType(type);
+    setKpiForm({
+      machineId: '',
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0]
+    });
+    setShowCalculateModal(true);
+  };
+
+  const handleCalculateKPI = async () => {
     try {
-      let response;
-      switch (type) {
+      const payload = {
+        startDate: new Date(kpiForm.startDate).toISOString(),
+        endDate: new Date(kpiForm.endDate).toISOString()
+      };
+      if (kpiType === 'oee') {
+        if (!kpiForm.machineId) {
+          window.alert('Machine ID is required for OEE calculation');
+          return;
+        }
+        payload.machineId = kpiForm.machineId;
+      }
+      
+      switch (kpiType) {
         case 'oee':
-          response = await kpisAPI.calculateOEE({
-            machineId: prompt('Enter Machine ID:'),
-            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-            endDate: new Date().toISOString()
-          });
+          await kpisAPI.calculateOEE(payload);
           break;
         case 'otd':
-          response = await kpisAPI.calculateOTD({
-            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-            endDate: new Date().toISOString()
-          });
+          await kpisAPI.calculateOTD(payload);
           break;
         case 'fpy':
-          response = await kpisAPI.calculateFPY({
-            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-            endDate: new Date().toISOString()
-          });
+          await kpisAPI.calculateFPY(payload);
           break;
         default:
           return;
       }
-      window.alert(`${type.toUpperCase()} calculated successfully!`);
+      window.alert(`${kpiType.toUpperCase()} calculated successfully!`);
+      setShowCalculateModal(false);
       fetchKPIDashboard();
     } catch (error) {
-      console.error(`Error calculating ${type}:`, error);
-      window.alert(`Failed to calculate ${type}`);
+      console.error(`Error calculating ${kpiType}:`, error);
+      window.alert(`Failed to calculate ${kpiType}`);
     }
   };
 
@@ -145,25 +153,97 @@ export default function KPIsTab() {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Calculate</h3>
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => handleCalculateKPI('oee')}
+                onClick={() => openCalculateModal('oee')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
               >
                 Calculate OEE
               </button>
               <button
-                onClick={() => handleCalculateKPI('otd')}
+                onClick={() => openCalculateModal('otd')}
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
               >
                 Calculate OTD
               </button>
               <button
-                onClick={() => handleCalculateKPI('fpy')}
+                onClick={() => openCalculateModal('fpy')}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
               >
                 Calculate FPY
               </button>
             </div>
           </div>
+
+          {/* Calculate KPI Modal */}
+          {showCalculateModal && (
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+              <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowCalculateModal(false)}></div>
+                
+                <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                  <div className="absolute top-0 right-0 pt-4 pr-4">
+                    <button onClick={() => setShowCalculateModal(false)} className="text-gray-400 hover:text-gray-500">
+                      <XMarkIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                  
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Calculate {kpiType.toUpperCase()}</h3>
+                  
+                  <div className="space-y-4">
+                    {kpiType === 'oee' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Machine ID *</label>
+                        <input
+                          type="text"
+                          required
+                          value={kpiForm.machineId}
+                          onChange={(e) => setKpiForm({ ...kpiForm, machineId: e.target.value })}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          placeholder="Enter machine ID"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Start Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={kpiForm.startDate}
+                        onChange={(e) => setKpiForm({ ...kpiForm, startDate: e.target.value })}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">End Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={kpiForm.endDate}
+                        onChange={(e) => setKpiForm({ ...kpiForm, endDate: e.target.value })}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end space-x-3 mt-6">
+                      <button
+                        type="button"
+                        onClick={() => setShowCalculateModal(false)}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCalculateKPI}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        Calculate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* KPI Summary Cards */}
           {dashboard && dashboard.summary && (

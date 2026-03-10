@@ -7,8 +7,7 @@ import {
   LockClosedIcon, 
   EyeIcon, 
   EyeSlashIcon,
-  ArrowRightIcon,
-  SparklesIcon
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 
 const Login = () => {

@@ -14,15 +14,12 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
-  BarChart,
-  Bar
+  ResponsiveContainer
 } from 'recharts';
 
 export default function ForecastsTab() {
   const [forecasts, setForecasts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [selectedForecast, setSelectedForecast] = useState(null);
 
@@ -37,6 +34,7 @@ export default function ForecastsTab() {
 
   useEffect(() => {
     fetchForecasts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType]);
 
   const fetchForecasts = async () => {
@@ -54,7 +52,7 @@ export default function ForecastsTab() {
 
   const handleGenerateDemandForecast = async () => {
     try {
-      const response = await forecastsAPI.generateDemandForecast({
+      await forecastsAPI.generateDemandForecast({
         months: 6,
         includeSeasonality: true
       });

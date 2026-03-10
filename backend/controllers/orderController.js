@@ -291,7 +291,7 @@ exports.deleteOrder = async (req, res, next) => {
       });
     }
 
-    await order.remove();
+    await Order.findByIdAndDelete(req.params.id);
     await OrderItem.deleteMany({ orderId: order._id });
 
     res.json({
@@ -325,6 +325,16 @@ exports.dispatchOrder = async (req, res, next) => {
     }
 
     const { transportDetails, packingDetails, scheduledDeliveryDate } = req.body;
+    const resolvedTransportDetails = transportDetails || {
+      mode: req.body.transportMode,
+      carrierName: req.body.carrierName,
+      vehicleNo: req.body.vehicleNo,
+      driverName: req.body.driverName,
+      driverContact: req.body.driverContact
+    };
+    const resolvedPackingDetails = packingDetails || {
+      awbNo: req.body.awbNo
+    };
 
     // Generate dispatch number
     const count = await Dispatch.countDocuments();
@@ -348,8 +358,8 @@ exports.dispatchOrder = async (req, res, next) => {
         quantity: item.orderedQuantity,
         uom: item.uom
       })),
-      transportDetails,
-      packingDetails,
+      transportDetails: resolvedTransportDetails,
+      packingDetails: resolvedPackingDetails,
       deliveryAddress: order.deliveryAddress,
       invoiceNo: order.invoiceNo,
       invoiceValue: order.totalValue,

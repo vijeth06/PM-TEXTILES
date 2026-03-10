@@ -1,5 +1,4 @@
 import React from 'react';
-import { FunnelIcon } from '@heroicons/react/24/outline';
 
 export default function LeadFunnelTab() {
   const funnelStages = [

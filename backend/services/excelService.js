@@ -81,19 +81,62 @@ const exportProductionToExcel = async (productionData, filePath) => {
   return exportToExcel(productionData, columns, filePath, 'Production');
 };
 
+const generateInventoryImportTemplate = async (filePath) => {
+  const sampleRows = [
+    {
+      item_name: 'Cotton Yarn 30s',
+      sku: 'YARN-COT-30S',
+      category: 'Raw Material',
+      current_stock: 1200,
+      min_level: 300,
+      max_level: 2500,
+      unit: 'kg',
+      unit_price: 285.5,
+      status: 'active'
+    }
+  ];
+
+  const columns = [
+    { header: 'item_name', key: 'item_name', width: 24 },
+    { header: 'sku', key: 'sku', width: 20 },
+    { header: 'category', key: 'category', width: 18 },
+    { header: 'current_stock', key: 'current_stock', width: 14 },
+    { header: 'min_level', key: 'min_level', width: 12 },
+    { header: 'max_level', key: 'max_level', width: 12 },
+    { header: 'unit', key: 'unit', width: 10 },
+    { header: 'unit_price', key: 'unit_price', width: 12 },
+    { header: 'status', key: 'status', width: 12 }
+  ];
+
+  return exportToExcel(sampleRows, columns, filePath, 'InventoryImportTemplate');
+};
+
 const importFromExcel = async (filePath) => {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
   
   const worksheet = workbook.getWorksheet(1);
+  if (!worksheet) return [];
+
   const data = [];
+  const headers = [];
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.eachCell((cell, colNumber) => {
+    const raw = String(cell.value || '').trim();
+    const key = raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    headers[colNumber] = key || `column_${colNumber}`;
+  });
   
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber > 1) { // Skip header
       const rowData = {};
       row.eachCell((cell, colNumber) => {
-        const column = worksheet.getColumn(colNumber);
-        rowData[column.key] = cell.value;
+        const key = headers[colNumber] || `column_${colNumber}`;
+        rowData[key] = cell.value;
       });
       data.push(rowData);
     }
@@ -107,5 +150,6 @@ module.exports = {
   exportInventoryToExcel,
   exportOrdersToExcel,
   exportProductionToExcel,
-  importFromExcel
+  importFromExcel,
+  generateInventoryImportTemplate
 };

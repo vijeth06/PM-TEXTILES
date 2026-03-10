@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { reportsAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { DocumentChartBarIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardBody, Button, Input, Select, LoadingSpinner, Table, Thead, Tbody, Th, Td, Badge } from '../components/common';
+import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { Card, CardHeader, CardBody, Button, Select, LoadingSpinner, Table, Thead, Tbody, Th, Td, Badge } from '../components/common';
 import DateRangePicker from '../components/DateRangePicker';
-import { exportToPDF, exportToExcel, formatDataForExport, prepareHeaders } from '../utils/exportUtils';
+import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -66,6 +66,52 @@ const ReportsNew = () => {
 
       // Prepare data based on report type
       switch (selectedReport) {
+        case 'production': {
+          const stageEntries = Object.entries(reportData.summary?.stageWise || {});
+          headers = ['Stage', 'Completed', 'In Progress', 'Total Output'];
+          data = stageEntries.map(([stage, values]) => [
+            stage.replace(/_/g, ' ').toUpperCase(),
+            values.completed,
+            values.inProgress,
+            values.totalOutput
+          ]);
+          summary = { 'Total Stages': reportData.summary?.totalStages || 0 };
+          break;
+        }
+        case 'inventory': {
+          const agingEntries = Object.entries(reportData.agingBuckets || {});
+          headers = ['Aging Bucket (Days)', 'Item Count', 'Value (₹)'];
+          data = agingEntries.map(([bucket, values]) => [
+            bucket, values.count, '₹' + (values.value || 0).toLocaleString()
+          ]);
+          break;
+        }
+        case 'wastage': {
+          const stageWastage = Object.entries(reportData.byStage || {});
+          headers = ['Stage', 'Quantity (kg)', 'Cost (₹)'];
+          data = stageWastage.map(([stage, values]) => [
+            stage.replace(/_/g, ' ').toUpperCase(), values.quantity, '₹' + (values.cost || 0).toLocaleString()
+          ]);
+          summary = {
+            'Total Records': reportData.summary?.totalRecords || 0,
+            'Total Quantity': (reportData.summary?.totalQuantity || 0) + ' kg',
+            'Total Cost': '₹' + (reportData.summary?.totalCost || 0).toLocaleString()
+          };
+          break;
+        }
+        case 'orders': {
+          const metrics = reportData.metrics || {};
+          headers = ['Metric', 'Value'];
+          data = [
+            ['Total Orders', metrics.total || 0],
+            ['Delivered', metrics.delivered || 0],
+            ['On Time', metrics.onTime || 0],
+            ['Delayed', metrics.delayed || 0],
+            ['Pending', metrics.pending || 0],
+            ['OTIF %', (metrics.otif || 0) + '%']
+          ];
+          break;
+        }
         case 'machines':
           headers = ['Machine', 'Type', 'Uptime (hrs)', 'Downtime (hrs)', 'Utilization %', 'Status'];
           data = (reportData.data || []).map(m => [
@@ -123,11 +169,60 @@ const ReportsNew = () => {
     }
 
     try {
-      const report = reports.find(r => r.id === selectedReport);
       let sheets = [];
 
       // Prepare data based on report type
       switch (selectedReport) {
+        case 'production': {
+          const stageEntries = Object.entries(reportData.summary?.stageWise || {});
+          sheets.push({
+            name: 'Production Report',
+            headers: ['Stage', 'Completed', 'In Progress', 'Total Output'],
+            data: stageEntries.map(([stage, values]) => [
+              stage.replace(/_/g, ' ').toUpperCase(), values.completed, values.inProgress, values.totalOutput
+            ])
+          });
+          break;
+        }
+        case 'inventory': {
+          const agingEntries = Object.entries(reportData.agingBuckets || {});
+          sheets.push({
+            name: 'Inventory Aging',
+            headers: ['Aging Bucket (Days)', 'Item Count', 'Value'],
+            data: agingEntries.map(([bucket, values]) => [bucket, values.count, values.value || 0])
+          });
+          break;
+        }
+        case 'wastage': {
+          const stageWastage = Object.entries(reportData.byStage || {});
+          const typeWastage = Object.entries(reportData.byType || {});
+          sheets.push({
+            name: 'Wastage by Stage',
+            headers: ['Stage', 'Quantity (kg)', 'Cost'],
+            data: stageWastage.map(([stage, v]) => [stage.replace(/_/g, ' ').toUpperCase(), v.quantity, v.cost])
+          });
+          sheets.push({
+            name: 'Wastage by Type',
+            headers: ['Type', 'Quantity (kg)', 'Cost'],
+            data: typeWastage.map(([type, v]) => [type.replace(/_/g, ' ').toUpperCase(), v.quantity, v.cost])
+          });
+          break;
+        }
+        case 'orders': {
+          const metrics = reportData.metrics || {};
+          sheets.push({
+            name: 'Order Fulfillment',
+            headers: ['Metric', 'Value'],
+            data: [
+              ['Total Orders', metrics.total || 0],
+              ['Delivered', metrics.delivered || 0],
+              ['On Time', metrics.onTime || 0],
+              ['Delayed', metrics.delayed || 0],
+              ['OTIF %', (metrics.otif || 0) + '%']
+            ]
+          });
+          break;
+        }
         case 'machines':
           sheets.push({
             name: 'Machine Utilization',
@@ -259,7 +354,7 @@ const ReportsNew = () => {
 
 const ProductionReport = ({ data }) => {
   const stageData = Object.entries(data.summary?.stageWise || {}).map(([stage, values]) => ({
-    stage: stage.replace('_', ' ').toUpperCase(),
+    stage: stage.replace(/_/g, ' ').toUpperCase(),
     completed: values.completed,
     inProgress: values.inProgress,
     output: values.totalOutput
@@ -365,13 +460,13 @@ const InventoryAgingReport = ({ data }) => {
 
 const WastageReport = ({ data }) => {
   const stageData = Object.entries(data.byStage || {}).map(([stage, values]) => ({
-    stage: stage.replace('_', ' ').toUpperCase(),
+    stage: stage.replace(/_/g, ' ').toUpperCase(),
     quantity: values.quantity,
     cost: values.cost
   }));
 
   const typeData = Object.entries(data.byType || {}).map(([type, values]) => ({
-    type: type.replace('_', ' ').toUpperCase(),
+    type: type.replace(/_/g, ' ').toUpperCase(),
     quantity: values.quantity,
     cost: values.cost
   }));

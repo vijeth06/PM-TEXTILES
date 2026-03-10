@@ -46,21 +46,26 @@ export const useInventoryUpdates = (onUpdate) => {
 export const useOrderUpdates = (onUpdate) => {
   useEffect(() => {
     if (socketService.isConnected()) {
-      const handleUpdate = (data) => {
+      const createHandler = (eventName) => (data) => {
         console.log('Order updated:', data);
-        if (onUpdate) onUpdate(data);
+        if (onUpdate) onUpdate({ ...data, event: eventName });
       };
 
-      socketService.on('order_created', handleUpdate);
-      socketService.on('order_updated', handleUpdate);
-      socketService.on('order_dispatched', handleUpdate);
-      socketService.on('order_status_updated', handleUpdate);
+      const onOrderCreated = createHandler('order_created');
+      const onOrderUpdated = createHandler('order_updated');
+      const onOrderDispatched = createHandler('order_dispatched');
+      const onOrderStatusUpdated = createHandler('order_status_updated');
+
+      socketService.on('order_created', onOrderCreated);
+      socketService.on('order_updated', onOrderUpdated);
+      socketService.on('order_dispatched', onOrderDispatched);
+      socketService.on('order_status_updated', onOrderStatusUpdated);
 
       return () => {
-        socketService.off('order_created', handleUpdate);
-        socketService.off('order_updated', handleUpdate);
-        socketService.off('order_dispatched', handleUpdate);
-        socketService.off('order_status_updated', handleUpdate);
+        socketService.off('order_created', onOrderCreated);
+        socketService.off('order_updated', onOrderUpdated);
+        socketService.off('order_dispatched', onOrderDispatched);
+        socketService.off('order_status_updated', onOrderStatusUpdated);
       };
     }
   }, [onUpdate]);

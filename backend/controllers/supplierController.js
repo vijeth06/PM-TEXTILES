@@ -1,6 +1,53 @@
 const Supplier = require('../models/Supplier');
 const { broadcastToAll, emitToRole } = require('../services/socketService');
 
+const normalizeSupplierPayload = (payload = {}) => {
+  const normalized = { ...payload };
+
+  if (typeof normalized.contactPerson === 'string') {
+    normalized.contactPerson = {
+      name: normalized.contactPerson,
+      phone: normalized.phone || '',
+      email: normalized.email || ''
+    };
+  }
+
+  if (normalized.city || normalized.state || normalized.pincode || typeof normalized.address === 'string') {
+    const existingAddress = typeof normalized.address === 'object' && normalized.address !== null
+      ? normalized.address
+      : {};
+
+    normalized.address = {
+      ...existingAddress,
+      line1: typeof normalized.address === 'string' ? normalized.address : existingAddress.line1,
+      city: normalized.city || existingAddress.city,
+      state: normalized.state || existingAddress.state,
+      pincode: normalized.pincode || existingAddress.pincode,
+      country: existingAddress.country || 'India'
+    };
+  }
+
+  if (normalized.gstNo && !normalized.gstin) {
+    normalized.gstin = normalized.gstNo;
+  }
+
+  if (normalized.category === 'packaging') {
+    normalized.category = 'consumables';
+  }
+
+  if (typeof normalized.paymentTerms === 'number' || /^\d+$/.test(String(normalized.paymentTerms || ''))) {
+    normalized.creditPeriod = Number(normalized.paymentTerms);
+    normalized.paymentTerms = 'credit';
+  }
+
+  delete normalized.city;
+  delete normalized.state;
+  delete normalized.pincode;
+  delete normalized.gstNo;
+
+  return normalized;
+};
+
 // @desc    Get all suppliers
 // @route   GET /api/suppliers
 // @access  Private
@@ -9,7 +56,7 @@ exports.getSuppliers = async (req, res, next) => {
     const { category, isActive, page = 1, limit = 50 } = req.query;
 
     const query = {};
-    if (category) query.category = category;
+    if (category) query.category = category === 'packaging' ? 'consumables' : category;
     if (isActive !== undefined) query.isActive = isActive === 'true';
 
     const suppliers = await Supplier.find(query)
@@ -65,7 +112,7 @@ exports.createSupplier = async (req, res, next) => {
     const code = `SUPP-${String(count + 1).padStart(5, '0')}`;
 
     const supplier = await Supplier.create({
-      ...req.body,
+      ...normalizeSupplierPayload(req.body),
       code
     });
 
@@ -101,7 +148,7 @@ exports.updateSupplier = async (req, res, next) => {
       });
     }
 
-    supplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, {
+    supplier = await Supplier.findByIdAndUpdate(req.params.id, normalizeSupplierPayload(req.body), {
       new: true,
       runValidators: true
     });
@@ -130,7 +177,7 @@ exports.deleteSupplier = async (req, res, next) => {
       });
     }
 
-    await supplier.remove();
+    await Supplier.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,

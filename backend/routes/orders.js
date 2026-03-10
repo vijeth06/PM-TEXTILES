@@ -19,6 +19,8 @@ router.route('/')
   .get(checkPermission('view_orders'), getOrders)
   .post(checkPermission('manage_orders'), orderValidation, validate, createOrder);
 
+router.get('/customer/:customerId', checkPermission('view_orders'), getOrdersByCustomer);
+
 router.route('/:id')
   .get(checkPermission('view_orders'), idValidation, validate, getOrder)
   .put(checkPermission('manage_orders'), idValidation, validate, updateOrder)
@@ -26,6 +28,5 @@ router.route('/:id')
 
 router.post('/:id/dispatch', checkPermission('manage_orders'), dispatchOrder);
 router.get('/:id/profit', checkPermission('view_orders'), getOrderProfit);
-router.get('/customer/:customerId', checkPermission('view_orders'), getOrdersByCustomer);
 
 module.exports = router;

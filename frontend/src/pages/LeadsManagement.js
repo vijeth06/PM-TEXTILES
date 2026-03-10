@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Tab } from '@headlessui/react';
 import { 
   UserGroupIcon, 
@@ -6,7 +6,6 @@ import {
   FunnelIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
 import LeadsListTab from '../components/leads/LeadsListTab';
 import QuotationsTab from '../components/leads/QuotationsTab';
 import LeadFunnelTab from '../components/leads/LeadFunnelTab';
@@ -27,7 +26,6 @@ export default function LeadsManagement() {
   ];
 
   return (
-    <Layout>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
@@ -77,6 +75,5 @@ export default function LeadsManagement() {
           </Tab.Group>
         </div>
       </div>
-    </Layout>
   );
 }

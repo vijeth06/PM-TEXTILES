@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
@@ -17,7 +17,9 @@ import {
   Bars3Icon,
   XMarkIcon,
   ClipboardDocumentListIcon,
-  SparklesIcon
+  DocumentTextIcon,
+  UserGroupIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -30,7 +32,10 @@ import {
   ChartBarIcon as ChartBarIconSolid,
   BanknotesIcon as BanknotesIconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid,
-  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid
+  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
+  DocumentTextIcon as DocumentTextIconSolid,
+  UserGroupIcon as UserGroupIconSolid,
+  MegaphoneIcon as MegaphoneIconSolid
 } from '@heroicons/react/24/solid';
 
 const navigation = [
@@ -42,6 +47,9 @@ const navigation = [
   { name: 'Orders', href: '/orders', icon: ShoppingCartIcon, iconSolid: ShoppingCartIconSolid, permission: 'view_orders' },
   { name: 'Customers', href: '/customers', icon: UsersIcon, iconSolid: UsersIconSolid, permission: 'view_customers' },
   { name: 'Suppliers', href: '/suppliers', icon: TruckIcon, iconSolid: TruckIconSolid, permission: 'view_suppliers' },
+  { name: 'Leads / CRM', href: '/leads', icon: MegaphoneIcon, iconSolid: MegaphoneIconSolid, permission: 'view_customers' },
+  { name: 'Employees', href: '/employees', icon: UserGroupIcon, iconSolid: UserGroupIconSolid, permission: 'manage_users' },
+  { name: 'Documents', href: '/documents', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
   { name: 'Finance', href: '/finance', icon: BanknotesIcon, iconSolid: BanknotesIconSolid, permission: 'view_reports' },
   { name: 'Audit Trail', href: '/audit', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, permission: 'system_admin', adminOnly: true },
@@ -117,7 +125,7 @@ const Layout = () => {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+                  <p className="text-xs text-gray-500 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
                 </div>
               </div>
             </div>
@@ -166,7 +174,7 @@ const Layout = () => {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
               </div>
             </div>
           </div>
@@ -209,7 +217,7 @@ const Layout = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
-                  <p className="text-xs text-gray-600 capitalize">{user?.role?.replace('_', ' ')}</p>
+                  <p className="text-xs text-gray-600 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
                 </div>
               </div>
               

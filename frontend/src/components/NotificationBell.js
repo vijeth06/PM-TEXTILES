@@ -4,7 +4,6 @@ import {
   BellIcon, XMarkIcon, CheckIcon, TrashIcon 
 } from '@heroicons/react/24/outline';
 import { BellAlertIcon } from '@heroicons/react/24/solid';
-import { Badge } from './common';
 
 const NotificationBell = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAll } = useNotifications();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Tab } from '@headlessui/react';
 import { 
   ChartBarIcon, 
@@ -6,7 +6,6 @@ import {
   CurrencyDollarIcon,
   ClipboardDocumentListIcon 
 } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
 import ForecastsTab from '../components/analytics/ForecastsTab';
 import KPIsTab from '../components/analytics/KPIsTab';
 import CostAnalysisTab from '../components/analytics/CostAnalysisTab';
@@ -27,7 +26,6 @@ export default function Analytics() {
   ];
 
   return (
-    <Layout>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
@@ -77,6 +75,5 @@ export default function Analytics() {
           </Tab.Group>
         </div>
       </div>
-    </Layout>
   );
 }

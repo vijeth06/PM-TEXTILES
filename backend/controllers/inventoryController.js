@@ -125,12 +125,11 @@ exports.issueMaterial = async (req, res, next) => {
 
       const issueQty = Math.min(batch.qtyAvailable, remainingQty);
       
-      batch.qtyReserved += issueQty;
       batch.qtyOnHand -= issueQty;
       batch.qtyAvailable = batch.qtyOnHand - batch.qtyReserved;
       
-      if (batch.qtyOnHand === 0) {
-        batch.status = 'reserved';
+      if (batch.qtyOnHand <= 0) {
+        batch.status = 'depleted';
       }
 
       await batch.save();

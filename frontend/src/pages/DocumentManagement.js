@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { documentsAPI } from '../services/analyticsAPI';
-import Layout from '../components/Layout';
 import { 
   DocumentTextIcon, 
-  PlusIcon, 
   MagnifyingGlassIcon,
   FolderIcon,
   CloudArrowUpIcon
@@ -15,11 +13,23 @@ export default function DocumentManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ category: 'all', status: 'all' });
 
-  const categories = ['SOP', 'Quality', 'Safety', 'Training', 'Contract', 'Report', 'Certification', 'Other'];
-  const statuses = ['draft', 'pending_approval', 'approved', 'rejected', 'archived'];
+  const categories = [
+    { value: 'policy', label: 'Policy' },
+    { value: 'procedure', label: 'Procedure' },
+    { value: 'sop', label: 'SOP' },
+    { value: 'manual', label: 'Manual' },
+    { value: 'certificate', label: 'Certificate' },
+    { value: 'report', label: 'Report' },
+    { value: 'invoice', label: 'Invoice' },
+    { value: 'contract', label: 'Contract' },
+    { value: 'compliance', label: 'Compliance' },
+    { value: 'other', label: 'Other' }
+  ];
+  const statuses = ['draft', 'pending_approval', 'approved', 'archived', 'expired'];
 
   useEffect(() => {
     fetchDocuments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const fetchDocuments = async () => {
@@ -63,7 +73,7 @@ export default function DocumentManagement() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('title', file.name);
-      formData.append('category', 'Other');
+      formData.append('category', 'other');
       formData.append('accessLevel', 'internal');
 
       try {
@@ -83,8 +93,8 @@ export default function DocumentManagement() {
       draft: 'bg-gray-100 text-gray-800',
       pending_approval: 'bg-yellow-100 text-yellow-800',
       approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      archived: 'bg-blue-100 text-blue-800'
+      archived: 'bg-blue-100 text-blue-800',
+      expired: 'bg-red-100 text-red-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -94,7 +104,6 @@ export default function DocumentManagement() {
   };
 
   return (
-    <Layout>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
@@ -142,7 +151,7 @@ export default function DocumentManagement() {
               >
                 <option value="all">All Categories</option>
                 {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
                 ))}
               </select>
               <select
@@ -271,6 +280,5 @@ export default function DocumentManagement() {
           </div>
         )}
       </div>
-    </Layout>
   );
 }

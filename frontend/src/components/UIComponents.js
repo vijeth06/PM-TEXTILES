@@ -287,7 +287,7 @@ export const ProgressBar = ({ value, max = 100, color = 'blue', showLabel = true
   );
 };
 
-export default {
+const UIComponents = {
   Card,
   Button,
   Badge,
@@ -297,3 +297,5 @@ export default {
   Alert,
   ProgressBar,
 };
+
+export default UIComponents;

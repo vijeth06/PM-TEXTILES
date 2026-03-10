@@ -10,10 +10,12 @@ const Machine = require('../models/Machine');
 // @access  Private
 exports.getDailyProductionReport = async (req, res, next) => {
   try {
-    const { date = new Date() } = req.query;
+    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    
+    // Parse date properly
     const reportDate = new Date(date);
-    const startOfDay = new Date(reportDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(reportDate.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate(), 23, 59, 59, 999);
 
     // Get stages completed/in progress on this date
     const stages = await ProductionStage.find({
@@ -25,6 +27,10 @@ exports.getDailyProductionReport = async (req, res, next) => {
 
     // Aggregate by stage
     const stageWise = {};
+    let totalOutput = 0;
+    let totalWastage = 0;
+    let totalRejection = 0;
+
     stages.forEach(stage => {
       if (!stageWise[stage.stageName]) {
         stageWise[stage.stageName] = {
@@ -38,25 +44,35 @@ exports.getDailyProductionReport = async (req, res, next) => {
 
       if (stage.status === 'completed') {
         stageWise[stage.stageName].completed++;
-        stageWise[stage.stageName].totalOutput += stage.outputQuantity;
+        const output = stage.outputQuantity || 0;
+        stageWise[stage.stageName].totalOutput += output;
+        totalOutput += output;
       } else if (stage.status === 'in_progress') {
         stageWise[stage.stageName].inProgress++;
       }
 
-      stageWise[stage.stageName].totalWastage += stage.wastageQuantity;
-      stageWise[stage.stageName].totalRejection += stage.rejectedQuantity;
+      const wastage = stage.wastageQuantity || 0;
+      const rejection = stage.rejectedQuantity || 0;
+      stageWise[stage.stageName].totalWastage += wastage;
+      stageWise[stage.stageName].totalRejection += rejection;
+      totalWastage += wastage;
+      totalRejection += rejection;
     });
 
     res.json({
       success: true,
-      reportDate: reportDate.toISOString().split('T')[0],
+      reportDate: startOfDay.toISOString().split('T')[0],
       summary: {
         totalStages: stages.length,
+        totalOutput,
+        totalWastage,
+        totalRejection,
         stageWise
       },
       details: stages
     });
   } catch (error) {
+    console.error('Daily production report error:', error);
     next(error);
   }
 };
@@ -80,8 +96,13 @@ exports.getInventoryAgingReport = async (req, res, next) => {
       '90+': { count: 0, value: 0, items: [] }
     };
 
+    let totalValue = 0;
+    let totalItems = 0;
+
     inventory.forEach(item => {
-      const ageInDays = Math.floor((now - item.fifoDate) / (1000 * 60 * 60 * 24));
+      if (!item.fifoDate) return; // Skip items without fifoDate
+      
+      const ageInDays = Math.floor((now - new Date(item.fifoDate)) / (1000 * 60 * 60 * 24));
       let bucket;
 
       if (ageInDays <= 30) bucket = '0-30';
@@ -89,24 +110,33 @@ exports.getInventoryAgingReport = async (req, res, next) => {
       else if (ageInDays <= 90) bucket = '61-90';
       else bucket = '90+';
 
+      const itemValue = item.totalValue || 0;
       agingBuckets[bucket].count++;
-      agingBuckets[bucket].value += item.totalValue;
+      agingBuckets[bucket].value += itemValue;
+      totalValue += itemValue;
+      totalItems++;
+
       agingBuckets[bucket].items.push({
         itemCode: item.itemCode,
         itemName: item.itemName,
         batchNo: item.batchNo,
-        quantity: item.qtyOnHand,
+        quantity: item.qtyOnHand || 0,
         ageInDays,
-        value: item.totalValue
+        value: itemValue
       });
     });
 
     res.json({
       success: true,
       reportDate: now.toISOString(),
+      summary: {
+        totalItems,
+        totalValue
+      },
       agingBuckets
     });
   } catch (error) {
+    console.error('Inventory aging report error:', error);
     next(error);
   }
 };
@@ -172,13 +202,14 @@ exports.getWastageAnalysisReport = async (req, res, next) => {
       summary: {
         totalRecords: wastageRecords.length,
         totalQuantity,
-        totalCost
+        totalCost: parseFloat(totalCost.toFixed(2))
       },
       byStage,
       byType,
       byReason
     });
   } catch (error) {
+    console.error('Wastage analysis report error:', error);
     next(error);
   }
 };
@@ -213,9 +244,9 @@ exports.getOrderFulfillmentReport = async (req, res, next) => {
     orders.forEach(order => {
       if (order.status === 'delivered') {
         metrics.delivered++;
-        if (order.actualDeliveryDate <= order.promiseDate) {
+        if (order.actualDeliveryDate && order.actualDeliveryDate <= order.promiseDate) {
           metrics.onTime++;
-        } else {
+        } else if (order.actualDeliveryDate && order.actualDeliveryDate > order.promiseDate) {
           metrics.delayed++;
         }
       } else if (order.status === 'cancelled') {
@@ -227,7 +258,7 @@ exports.getOrderFulfillmentReport = async (req, res, next) => {
       }
     });
 
-    metrics.otif = metrics.delivered > 0 ? ((metrics.onTime / metrics.delivered) * 100).toFixed(2) : 0;
+    metrics.otif = metrics.delivered > 0 ? parseFloat(((metrics.onTime / metrics.delivered) * 100).toFixed(2)) : 0;
 
     res.json({
       success: true,
@@ -235,6 +266,7 @@ exports.getOrderFulfillmentReport = async (req, res, next) => {
       metrics
     });
   } catch (error) {
+    console.error('Order fulfillment report error:', error);
     next(error);
   }
 };
@@ -247,9 +279,11 @@ exports.getMachineUtilizationReport = async (req, res, next) => {
     const machines = await Machine.find({ isActive: true });
 
     const report = machines.map(machine => {
-      const totalTime = machine.utilizationMetrics.totalUptime + machine.utilizationMetrics.totalDowntime;
+      const uptime = machine.utilizationMetrics?.totalUptime || 0;
+      const downtime = machine.utilizationMetrics?.totalDowntime || 0;
+      const totalTime = uptime + downtime;
       const utilizationPercent = totalTime > 0
-        ? ((machine.utilizationMetrics.totalUptime / totalTime) * 100).toFixed(2)
+        ? parseFloat(((uptime / totalTime) * 100).toFixed(2))
         : 0;
 
       return {
@@ -257,18 +291,25 @@ exports.getMachineUtilizationReport = async (req, res, next) => {
         machineName: machine.name,
         type: machine.type,
         status: machine.status,
-        totalUptime: machine.utilizationMetrics.totalUptime,
-        totalDowntime: machine.utilizationMetrics.totalDowntime,
+        totalUptime: uptime,
+        totalDowntime: downtime,
+        totalTime: totalTime,
         utilizationPercent
       };
     });
 
+    const avgUtilization = report.length > 0
+      ? parseFloat((report.reduce((sum, m) => sum + parseFloat(m.utilizationPercent), 0) / report.length).toFixed(2))
+      : 0;
+
     res.json({
       success: true,
       count: report.length,
+      avgUtilization,
       data: report
     });
   } catch (error) {
+    console.error('Machine utilization report error:', error);
     next(error);
   }
 };
@@ -292,28 +333,33 @@ exports.getProfitPerOrderReport = async (req, res, next) => {
     }
 
     const orders = await Order.find(query)
-      .populate('customerId', 'name')
-      .select('orderNo customerName totalValue orderDate status');
+      .populate('customerId', 'name');
 
     // Note: Full profit calculation would require cost data
-    // This is a simplified version
+    // This is a simplified version showing revenue
     const report = orders.map(order => ({
       orderNo: order.orderNo,
-      customerName: order.customerName,
+      customerName: order.customerName || (order.customerId?.name || 'N/A'),
       orderDate: order.orderDate,
-      revenue: order.totalValue,
-      // profit: would require cost calculation
+      totalQuantity: order.totalQuantity || 0,
+      revenue: order.totalValue || 0,
       status: order.status
     }));
+
+    const totalRevenue = parseFloat(orders.reduce((sum, o) => sum + (o.totalValue || 0), 0).toFixed(2));
+    const deliveredCount = orders.filter(o => o.status === 'delivered').length;
 
     res.json({
       success: true,
       period: { startDate, endDate },
       count: report.length,
-      totalRevenue: orders.reduce((sum, o) => sum + o.totalValue, 0),
+      deliveredCount,
+      totalRevenue,
+      avgOrderValue: report.length > 0 ? parseFloat((totalRevenue / report.length).toFixed(2)) : 0,
       data: report
     });
   } catch (error) {
+    console.error('Profit per order report error:', error);
     next(error);
   }
 };

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { authAPI, usersAPI } from '../services/api';
+import { authAPI, usersAPI, settingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { 
-  UserIcon, KeyIcon, Cog6ToothIcon, UsersIcon, PlusIcon, PencilIcon, TrashIcon,
-  ShieldCheckIcon
+  UserIcon, KeyIcon, Cog6ToothIcon, UsersIcon, PlusIcon, PencilIcon, TrashIcon
 } from '@heroicons/react/24/outline';
 import { 
   Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, 
@@ -65,7 +64,6 @@ const Settings = () => {
 
 const ProfileTab = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState({
     fullName: '',
     email: '',
@@ -119,7 +117,7 @@ const ProfileTab = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <div className="text-gray-900 capitalize">{userData.role?.replace('_', ' ')}</div>
+              <div className="text-gray-900 capitalize">{userData.role?.replace(/_/g, ' ')}</div>
             </div>
           </div>
 
@@ -280,7 +278,7 @@ const UserManagementTab = () => {
       qa_inspector: 'default',
       management: 'info'
     };
-    return <Badge variant={variants[role] || 'default'}>{role?.replace('_', ' ').toUpperCase()}</Badge>;
+    return <Badge variant={variants[role] || 'default'}>{role?.replace(/_/g, ' ').toUpperCase()}</Badge>;
   };
 
   return (
@@ -425,17 +423,31 @@ const UserModal = ({ user, onClose, onSuccess }) => {
     e.preventDefault();
     setLoading(true);
 
+    console.log('Submitting user form with data:', formData);
+
     try {
       if (user) {
         await usersAPI.updateUser(user._id, formData);
         toast.success('User updated successfully');
       } else {
-        await usersAPI.createUser(formData);
+        console.log('Creating new user...');
+        const response = await usersAPI.createUser(formData);
+        console.log('User creation response:', response);
         toast.success('User created successfully');
       }
       onSuccess();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Operation failed');
+      console.error('User operation failed:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Operation failed';
+      const validationErrors = error.response?.data?.errors;
+      
+      if (validationErrors && Array.isArray(validationErrors)) {
+        const errorDetails = validationErrors.map(e => `${e.field}: ${e.message}`).join(', ');
+        toast.error(`${errorMessage} - ${errorDetails}`);
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -546,18 +558,30 @@ const SystemSettingsTab = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await settingsAPI.getSettings();
+        if (response.data?.data) {
+          setSettings(prev => ({ ...prev, ...response.data.data }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // API call would go here
-      setTimeout(() => {
-        toast.success('System settings updated successfully');
-        setLoading(false);
-      }, 1000);
+      await settingsAPI.updateSettings(settings);
+      toast.success('System settings updated successfully');
     } catch (error) {
-      toast.error('Failed to update settings');
+      toast.error(error.response?.data?.message || 'Failed to update settings');
+    } finally {
       setLoading(false);
     }
   };

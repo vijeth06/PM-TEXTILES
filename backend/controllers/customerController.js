@@ -2,16 +2,69 @@ const Customer = require('../models/Customer');
 const Order = require('../models/Order');
 const { broadcastToAll, emitToRole } = require('../services/socketService');
 
+const normalizeCustomerPayload = (payload = {}) => {
+  const normalized = { ...payload };
+
+  if (typeof normalized.contactPerson === 'string') {
+    normalized.contactPerson = {
+      name: normalized.contactPerson,
+      phone: normalized.phone || '',
+      email: normalized.email || ''
+    };
+  }
+
+  if (normalized.city || normalized.state || normalized.pincode || typeof normalized.address === 'string') {
+    const existingAddress = typeof normalized.address === 'object' && normalized.address !== null
+      ? normalized.address
+      : {};
+
+    normalized.address = {
+      ...existingAddress,
+      line1: typeof normalized.address === 'string' ? normalized.address : existingAddress.line1,
+      city: normalized.city || existingAddress.city,
+      state: normalized.state || existingAddress.state,
+      pincode: normalized.pincode || existingAddress.pincode,
+      country: existingAddress.country || 'India'
+    };
+  }
+
+  if (normalized.gstNo && !normalized.gstin) {
+    normalized.gstin = normalized.gstNo;
+  }
+
+  if (typeof normalized.paymentTerms === 'number' || /^\d+$/.test(String(normalized.paymentTerms || ''))) {
+    normalized.creditPeriod = Number(normalized.paymentTerms);
+    normalized.paymentTerms = 'credit';
+  }
+
+  delete normalized.city;
+  delete normalized.state;
+  delete normalized.pincode;
+  delete normalized.gstNo;
+
+  return normalized;
+};
+
 // @desc    Get all customers
 // @route   GET /api/customers
 // @access  Private
 exports.getCustomers = async (req, res, next) => {
   try {
-    const { type, isActive, page = 1, limit = 50 } = req.query;
+    const { type, isActive, search, page = 1, limit = 50 } = req.query;
 
     const query = {};
     if (type) query.type = type;
     if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (search) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { name: regex },
+        { code: regex },
+        { email: regex },
+        { phone: regex },
+        { 'contactPerson.name': regex }
+      ];
+    }
 
     const customers = await Customer.find(query)
       .sort({ name: 1 })
@@ -75,7 +128,7 @@ exports.createCustomer = async (req, res, next) => {
     const code = `CUST-${String(count + 1).padStart(5, '0')}`;
 
     const customer = await Customer.create({
-      ...req.body,
+      ...normalizeCustomerPayload(req.body),
       code
     });
 
@@ -111,7 +164,7 @@ exports.updateCustomer = async (req, res, next) => {
       });
     }
 
-    customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
+    customer = await Customer.findByIdAndUpdate(req.params.id, normalizeCustomerPayload(req.body), {
       new: true,
       runValidators: true
     });
@@ -149,7 +202,7 @@ exports.deleteCustomer = async (req, res, next) => {
       });
     }
 
-    await customer.remove();
+    await Customer.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,

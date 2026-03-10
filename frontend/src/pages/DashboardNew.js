@@ -12,13 +12,11 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
-
 const DashboardNew = () => {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [selectedPeriod] = useState('today');
   const [productionTrendData, setProductionTrendData] = useState([]);
   const [inventoryTrendData, setInventoryTrendData] = useState([]);
 

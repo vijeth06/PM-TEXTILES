@@ -14,6 +14,7 @@ const Suppliers = () => {
 
   useEffect(() => {
     fetchSuppliers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination.currentPage]);
 
   const fetchSuppliers = async () => {
@@ -83,7 +84,8 @@ const Suppliers = () => {
               <option value="">All Categories</option>
               <option value="yarn">Yarn Supplier</option>
               <option value="dye">Dye & Chemical Supplier</option>
-              <option value="packaging">Packaging Material</option>
+              <option value="chemical">Chemicals</option>
+              <option value="consumables">Consumables & Packaging</option>
               <option value="machinery">Machinery & Parts</option>
               <option value="other">Other</option>
             </Select>
@@ -135,7 +137,7 @@ const Suppliers = () => {
                       <Td>
                         <div>
                           <div className="font-medium">{supplier.name}</div>
-                          <div className="text-xs text-gray-500">{supplier.supplierCode}</div>
+                          <div className="text-xs text-gray-500">{supplier.code}</div>
                         </div>
                       </Td>
                       <Td>
@@ -148,19 +150,19 @@ const Suppliers = () => {
                           <div className="text-xs text-gray-500">{supplier.contactPerson?.phone || supplier.phone}</div>
                         </div>
                       </Td>
-                      <Td>{supplier.paymentTerms} days</Td>
+                      <Td>{supplier.paymentTerms?.replace(/_/g, ' ') || 'credit'}</Td>
                       <Td>
                         <div className="text-sm">
-                          <div>Orders: {supplier.totalOrders || 0}</div>
+                          <div>Orders: {supplier.performanceMetrics?.totalOrders || 0}</div>
                           <div className="text-xs text-gray-500">
-                            OTD: {supplier.onTimeDeliveryRate?.toFixed(1) || 0}%
+                            OTD: {supplier.otdPercent || 0}%
                           </div>
                         </div>
                       </Td>
                       <Td>
                         <div className="flex items-center">
                           <span className="text-yellow-500 mr-1">★</span>
-                          {supplier.rating || 0}
+                          {supplier.performanceMetrics?.rating || 0}
                         </div>
                       </Td>
                       <Td>
@@ -214,15 +216,17 @@ const SupplierModal = ({ supplier, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: supplier?.name || '',
     category: supplier?.category || 'yarn',
-    contactPerson: supplier?.contactPerson || '',
+    contactName: supplier?.contactPerson?.name || '',
     email: supplier?.email || '',
     phone: supplier?.phone || '',
-    address: supplier?.address || '',
-    city: supplier?.city || '',
-    state: supplier?.state || '',
-    pincode: supplier?.pincode || '',
-    gstNo: supplier?.gstNo || '',
-    paymentTerms: supplier?.paymentTerms || 30
+    addressLine1: supplier?.address?.line1 || '',
+    addressLine2: supplier?.address?.line2 || '',
+    city: supplier?.address?.city || '',
+    state: supplier?.address?.state || '',
+    pincode: supplier?.address?.pincode || '',
+    gstin: supplier?.gstin || '',
+    creditPeriod: supplier?.creditPeriod || 30,
+    paymentTerms: supplier?.paymentTerms || 'credit'
   });
   const [loading, setLoading] = useState(false);
 
@@ -231,11 +235,34 @@ const SupplierModal = ({ supplier, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
+      const payload = {
+        name: formData.name,
+        category: formData.category,
+        contactPerson: {
+          name: formData.contactName,
+          email: formData.email,
+          phone: formData.phone
+        },
+        email: formData.email,
+        phone: formData.phone,
+        address: {
+          line1: formData.addressLine1,
+          line2: formData.addressLine2,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          country: 'India'
+        },
+        gstin: formData.gstin,
+        creditPeriod: Number(formData.creditPeriod || 0),
+        paymentTerms: formData.paymentTerms
+      };
+
       if (supplier) {
-        await suppliersAPI.updateSupplier(supplier._id, formData);
+        await suppliersAPI.updateSupplier(supplier._id, payload);
         toast.success('Supplier updated successfully');
       } else {
-        await suppliersAPI.createSupplier(formData);
+        await suppliersAPI.createSupplier(payload);
         toast.success('Supplier created successfully');
       }
       onSuccess();
@@ -264,7 +291,8 @@ const SupplierModal = ({ supplier, onClose, onSuccess }) => {
           >
             <option value="yarn">Yarn Supplier</option>
             <option value="dye">Dye & Chemical Supplier</option>
-            <option value="packaging">Packaging Material</option>
+            <option value="chemical">Chemicals</option>
+            <option value="consumables">Consumables & Packaging</option>
             <option value="machinery">Machinery & Parts</option>
             <option value="other">Other</option>
           </Select>
@@ -274,8 +302,8 @@ const SupplierModal = ({ supplier, onClose, onSuccess }) => {
           <Input
             label="Contact Person"
             required
-            value={formData.contactPerson}
-            onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+            value={formData.contactName}
+            onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
           />
           <Input
             label="Email"
@@ -295,16 +323,22 @@ const SupplierModal = ({ supplier, onClose, onSuccess }) => {
           />
           <Input
             label="GST Number"
-            value={formData.gstNo}
-            onChange={(e) => setFormData({ ...formData, gstNo: e.target.value })}
+            value={formData.gstin}
+            onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
           />
         </div>
 
         <Textarea
-          label="Address"
+          label="Address Line 1"
           required
-          value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          value={formData.addressLine1}
+          onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+        />
+
+        <Input
+          label="Address Line 2"
+          value={formData.addressLine2}
+          onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
         />
 
         <div className="grid grid-cols-3 gap-4">
@@ -332,9 +366,21 @@ const SupplierModal = ({ supplier, onClose, onSuccess }) => {
           label="Payment Terms (Days)"
           type="number"
           required
+          value={formData.creditPeriod}
+          onChange={(e) => setFormData({ ...formData, creditPeriod: e.target.value })}
+        />
+
+        <Select
+          label="Payment Mode"
+          required
           value={formData.paymentTerms}
           onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
-        />
+        >
+          <option value="advance">Advance</option>
+          <option value="cod">COD</option>
+          <option value="credit">Credit</option>
+          <option value="partial_advance">Partial Advance</option>
+        </Select>
 
         <div className="flex justify-end space-x-3 pt-4">
           <Button type="button" variant="secondary" onClick={onClose}>

@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { 
   BanknotesIcon, DocumentTextIcon, ShoppingBagIcon, ChartPieIcon,
-  PlusIcon, CheckCircleIcon, XCircleIcon
+  PlusIcon
 } from '@heroicons/react/24/outline';
-import { inventoryAPI, itemsAPI, suppliersAPI } from '../services/api';
+import { inventoryAPI, itemsAPI, suppliersAPI, ordersAPI, paymentsAPI } from '../services/api';
 import { 
   Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, 
   Modal, Input, Select, Textarea, LoadingSpinner 
@@ -60,39 +60,36 @@ const Finance = () => {
 };
 
 const InvoicesTab = () => {
-  const [invoices, setInvoices] = useState([
-    {
-      _id: '1',
-      invoiceNo: 'INV-2026-001',
-      customerName: 'ABC Traders',
-      invoiceDate: new Date('2026-01-01'),
-      dueDate: new Date('2026-01-31'),
-      amount: 125000,
-      paidAmount: 75000,
-      status: 'partial'
-    },
-    {
-      _id: '2',
-      invoiceNo: 'INV-2026-002',
-      customerName: 'XYZ Industries',
-      invoiceDate: new Date('2026-01-03'),
-      dueDate: new Date('2026-02-02'),
-      amount: 85000,
-      paidAmount: 0,
-      status: 'pending'
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({ total: 0, paid: 0, outstanding: 0 });
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      setLoading(true);
+      const response = await ordersAPI.getOrders({ limit: 100 });
+      const orderData = response.data.data || [];
+      setOrders(orderData);
+      const total = orderData.reduce((sum, o) => sum + (o.totalValue || 0), 0);
+      const paid = orderData.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
+      setSummary({ total, paid, outstanding: total - paid, count: orderData.length });
+    } catch (error) {
+      toast.error('Failed to fetch invoice data');
+    } finally {
+      setLoading(false);
     }
-  ]);
-  const [showModal, setShowModal] = useState(false);
+  };
 
   const getStatusBadge = (status) => {
-    const variants = {
-      paid: 'success',
-      partial: 'warning',
-      pending: 'default',
-      overdue: 'danger'
-    };
-    return <Badge variant={variants[status]}>{status.toUpperCase()}</Badge>;
+    const variants = { paid: 'success', partial: 'warning', unpaid: 'default', overdue: 'danger' };
+    return <Badge variant={variants[status] || 'default'}>{(status || 'unpaid').toUpperCase()}</Badge>;
   };
+
+  if (loading) return <div className="py-12"><LoadingSpinner size="lg" /></div>;
 
   return (
     <>
@@ -100,39 +97,29 @@ const InvoicesTab = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 mr-6">
           <Card>
             <CardBody>
-              <div className="text-sm text-gray-600">Total Invoices</div>
-              <div className="text-2xl font-bold text-gray-900">{invoices.length}</div>
+              <div className="text-sm text-gray-600">Total Orders</div>
+              <div className="text-2xl font-bold text-gray-900">{summary.count}</div>
             </CardBody>
           </Card>
           <Card>
             <CardBody>
-              <div className="text-sm text-gray-600">Total Amount</div>
-              <div className="text-2xl font-bold text-blue-900">
-                ₹{invoices.reduce((sum, inv) => sum + inv.amount, 0).toLocaleString()}
-              </div>
+              <div className="text-sm text-gray-600">Total Value</div>
+              <div className="text-2xl font-bold text-blue-900">₹{summary.total.toLocaleString()}</div>
             </CardBody>
           </Card>
           <Card>
             <CardBody>
-              <div className="text-sm text-gray-600">Paid</div>
-              <div className="text-2xl font-bold text-green-900">
-                ₹{invoices.reduce((sum, inv) => sum + inv.paidAmount, 0).toLocaleString()}
-              </div>
+              <div className="text-sm text-gray-600">Advance Received</div>
+              <div className="text-2xl font-bold text-green-900">₹{summary.paid.toLocaleString()}</div>
             </CardBody>
           </Card>
           <Card>
             <CardBody>
               <div className="text-sm text-gray-600">Outstanding</div>
-              <div className="text-2xl font-bold text-red-900">
-                ₹{invoices.reduce((sum, inv) => sum + (inv.amount - inv.paidAmount), 0).toLocaleString()}
-              </div>
+              <div className="text-2xl font-bold text-red-900">₹{summary.outstanding.toLocaleString()}</div>
             </CardBody>
           </Card>
         </div>
-        <Button onClick={() => setShowModal(true)} className="flex items-center">
-          <PlusIcon className="h-5 w-5 mr-2" />
-          New Invoice
-        </Button>
       </div>
 
       <Card>
@@ -140,211 +127,106 @@ const InvoicesTab = () => {
           <Table>
             <Thead>
               <tr>
-                <Th>Invoice No</Th>
+                <Th>Order No</Th>
                 <Th>Customer</Th>
-                <Th>Invoice Date</Th>
-                <Th>Due Date</Th>
-                <Th>Amount</Th>
-                <Th>Paid</Th>
+                <Th>Order Date</Th>
+                <Th>Promise Date</Th>
+                <Th>Total Value</Th>
+                <Th>Advance</Th>
                 <Th>Balance</Th>
-                <Th>Status</Th>
-                <Th>Actions</Th>
+                <Th>Payment Status</Th>
               </tr>
             </Thead>
             <Tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice._id}>
-                  <Td className="font-medium">{invoice.invoiceNo}</Td>
-                  <Td>{invoice.customerName}</Td>
-                  <Td>{invoice.invoiceDate.toLocaleDateString()}</Td>
-                  <Td>{invoice.dueDate.toLocaleDateString()}</Td>
-                  <Td className="font-medium">₹{invoice.amount.toLocaleString()}</Td>
-                  <Td className="text-green-600">₹{invoice.paidAmount.toLocaleString()}</Td>
-                  <Td className="text-red-600">
-                    ₹{(invoice.amount - invoice.paidAmount).toLocaleString()}
-                  </Td>
-                  <Td>{getStatusBadge(invoice.status)}</Td>
-                  <Td>
-                    <Button variant="outline" size="sm">View</Button>
-                  </Td>
+              {orders.map((order) => (
+                <tr key={order._id}>
+                  <Td className="font-medium">{order.orderNo}</Td>
+                  <Td>{order.customerId?.name || order.customerName}</Td>
+                  <Td>{new Date(order.orderDate || order.createdAt).toLocaleDateString()}</Td>
+                  <Td>{order.promiseDate ? new Date(order.promiseDate).toLocaleDateString() : '-'}</Td>
+                  <Td className="font-medium">₹{(order.totalValue || 0).toLocaleString()}</Td>
+                  <Td className="text-green-600">₹{(order.advanceAmount || 0).toLocaleString()}</Td>
+                  <Td className="text-red-600">₹{(order.balanceAmount || (order.totalValue - (order.advanceAmount || 0))).toLocaleString()}</Td>
+                  <Td>{getStatusBadge(order.paymentStatus)}</Td>
                 </tr>
               ))}
+              {orders.length === 0 && (
+                <tr><Td colSpan={8} className="text-center text-gray-500 py-8">No orders found</Td></tr>
+              )}
             </Tbody>
           </Table>
         </CardBody>
       </Card>
-
-      {showModal && (
-        <InvoiceModal onClose={() => setShowModal(false)} />
-      )}
     </>
   );
 };
 
-const InvoiceModal = ({ onClose }) => {
-  const [formData, setFormData] = useState({
-    customerName: '',
-    invoiceDate: new Date().toISOString().split('T')[0],
-    dueDate: '',
-    items: [{ description: '', quantity: 0, rate: 0, amount: 0 }],
-    taxRate: 18,
-    notes: ''
-  });
-
-  const addItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { description: '', quantity: 0, rate: 0, amount: 0 }]
-    });
-  };
-
-  const updateItem = (index, field, value) => {
-    const newItems = [...formData.items];
-    newItems[index][field] = value;
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].amount = newItems[index].quantity * newItems[index].rate;
-    }
-    setFormData({ ...formData, items: newItems });
-  };
-
-  const subtotal = formData.items.reduce((sum, item) => sum + item.amount, 0);
-  const taxAmount = (subtotal * formData.taxRate) / 100;
-  const total = subtotal + taxAmount;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    toast.success('Invoice created successfully');
-    onClose();
-  };
-
-  return (
-    <Modal isOpen={true} onClose={onClose} title="Create Invoice" size="xl">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Customer Name"
-            required
-            value={formData.customerName}
-            onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-          />
-          <Input
-            label="Invoice Date"
-            type="date"
-            required
-            value={formData.invoiceDate}
-            onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })}
-          />
-          <Input
-            label="Due Date"
-            type="date"
-            required
-            value={formData.dueDate}
-            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-          />
-          <Input
-            label="Tax Rate (%)"
-            type="number"
-            value={formData.taxRate}
-            onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) })}
-          />
-        </div>
-
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-gray-700">Line Items</label>
-            <Button type="button" variant="outline" size="sm" onClick={addItem}>
-              Add Item
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {formData.items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2">
-                <div className="col-span-5">
-                  <Input
-                    placeholder="Description"
-                    value={item.description}
-                    onChange={(e) => updateItem(idx, 'description', e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    placeholder="Qty"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    placeholder="Rate"
-                    value={item.rate}
-                    onChange={(e) => updateItem(idx, 'rate', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="col-span-3">
-                  <Input
-                    placeholder="Amount"
-                    value={item.amount.toFixed(2)}
-                    disabled
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Subtotal:</span>
-            <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Tax ({formData.taxRate}%):</span>
-            <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-bold border-t pt-2">
-            <span>Total:</span>
-            <span>₹{total.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <Textarea
-          label="Notes"
-          rows="2"
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-        />
-
-        <div className="flex justify-end space-x-3 pt-4">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit">Create Invoice</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-};
-
 const PaymentsTab = () => {
-  const [payments] = useState([
-    {
-      _id: '1',
-      paymentNo: 'PAY-001',
-      invoiceNo: 'INV-2026-001',
-      customerName: 'ABC Traders',
-      paymentDate: new Date('2026-01-15'),
-      amount: 75000,
-      mode: 'bank_transfer',
-      status: 'completed'
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [orders, setOrders] = useState([]);
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const response = await paymentsAPI.getPayments();
+      setPayments(response.data.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch payments');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const response = await ordersAPI.getOrders({ limit: 100 });
+      setOrders(response.data.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch orders');
+    }
+  };
+
+  const handleRecordPayment = () => {
+    fetchOrders();
+    setShowModal(true);
+  };
+
+  if (loading) return <div className="py-12"><LoadingSpinner size="lg" /></div>;
 
   return (
     <>
-      <div className="flex justify-end mb-6">
-        <Button className="flex items-center">
+      <div className="flex justify-between items-center mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 mr-6">
+          <Card>
+            <CardBody>
+              <div className="text-sm text-gray-600">Total Payments</div>
+              <div className="text-2xl font-bold text-gray-900">{payments.length}</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody>
+              <div className="text-sm text-gray-600">Total Amount Received</div>
+              <div className="text-2xl font-bold text-green-900">
+                ₹{payments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}
+              </div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody>
+              <div className="text-sm text-gray-600">Completed Payments</div>
+              <div className="text-2xl font-bold text-blue-900">
+                {payments.filter(p => p.status === 'completed').length}
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+        <Button onClick={handleRecordPayment} className="flex items-center">
           <PlusIcon className="h-5 w-5 mr-2" />
           Record Payment
         </Button>
@@ -355,34 +237,158 @@ const PaymentsTab = () => {
           <Table>
             <Thead>
               <tr>
-                <Th>Payment No</Th>
-                <Th>Invoice No</Th>
+                <Th>Order</Th>
                 <Th>Customer</Th>
                 <Th>Payment Date</Th>
                 <Th>Amount</Th>
-                <Th>Mode</Th>
+                <Th>Method</Th>
+                <Th>Reference</Th>
                 <Th>Status</Th>
               </tr>
             </Thead>
             <Tbody>
               {payments.map((payment) => (
                 <tr key={payment._id}>
-                  <Td className="font-medium">{payment.paymentNo}</Td>
-                  <Td>{payment.invoiceNo}</Td>
-                  <Td>{payment.customerName}</Td>
-                  <Td>{payment.paymentDate.toLocaleDateString()}</Td>
-                  <Td className="font-medium text-green-600">₹{payment.amount.toLocaleString()}</Td>
-                  <Td className="capitalize">{payment.mode.replace('_', ' ')}</Td>
+                  <Td className="font-medium">{payment.order?.orderNo || '-'}</Td>
+                  <Td>{payment.order?.customerName || '-'}</Td>
+                  <Td>{new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}</Td>
+                  <Td className="font-medium text-green-600">₹{(payment.amount || 0).toLocaleString()}</Td>
+                  <Td className="capitalize">{(payment.paymentMethod || '-').replace(/_/g, ' ')}</Td>
+                  <Td>{payment.transactionId || payment.reference || '-'}</Td>
                   <Td>
-                    <Badge variant="success">COMPLETED</Badge>
+                    <Badge variant={payment.status === 'completed' ? 'success' : 'warning'}>
+                      {(payment.status || 'pending').toUpperCase()}
+                    </Badge>
                   </Td>
                 </tr>
               ))}
+              {payments.length === 0 && (
+                <tr><Td colSpan={7} className="text-center text-gray-500 py-8">No payments recorded yet</Td></tr>
+              )}
             </Tbody>
           </Table>
         </CardBody>
       </Card>
+
+      {showModal && (
+        <RecordPaymentModal
+          orders={orders}
+          onClose={() => setShowModal(false)}
+          onSuccess={() => {
+            setShowModal(false);
+            fetchPayments();
+          }}
+        />
+      )}
     </>
+  );
+};
+
+const RecordPaymentModal = ({ orders, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    order: '',
+    amount: '',
+    paymentMethod: 'bank_transfer',
+    transactionId: '',
+    reference: '',
+    notes: ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.order || !formData.amount) {
+      toast.error('Order and amount are required');
+      return;
+    }
+    setLoading(true);
+    try {
+      await paymentsAPI.createPayment({
+        ...formData,
+        amount: Number(formData.amount)
+      });
+      toast.success('Payment recorded successfully');
+      onSuccess();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to record payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedOrder = orders.find(o => o._id === formData.order);
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Record Payment" size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Select
+          label="Order"
+          required
+          value={formData.order}
+          onChange={(e) => setFormData({ ...formData, order: e.target.value })}
+        >
+          <option value="">Select Order</option>
+          {orders.map(order => (
+            <option key={order._id} value={order._id}>
+              {order.orderNo} - {order.customerName || order.customerId?.name} (₹{order.totalValue?.toLocaleString()})
+            </option>
+          ))}
+        </Select>
+
+        {selectedOrder && (
+          <div className="bg-blue-50 p-3 rounded text-sm">
+            <p><strong>Order Value:</strong> ₹{selectedOrder.totalValue?.toLocaleString()}</p>
+            <p><strong>Balance:</strong> ₹{(selectedOrder.balanceAmount || selectedOrder.totalValue - (selectedOrder.advanceAmount || 0))?.toLocaleString()}</p>
+            <p><strong>Payment Status:</strong> {selectedOrder.paymentStatus || 'unpaid'}</p>
+          </div>
+        )}
+
+        <Input
+          label="Amount (₹)"
+          type="number"
+          required
+          min="1"
+          value={formData.amount}
+          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+        />
+
+        <Select
+          label="Payment Method"
+          required
+          value={formData.paymentMethod}
+          onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+        >
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="credit_card">Credit Card</option>
+        </Select>
+
+        <Input
+          label="Transaction ID / Reference"
+          value={formData.transactionId}
+          onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
+        />
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea
+            className="w-full border rounded-md p-2 text-sm"
+            rows={2}
+            value={formData.notes}
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          />
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Saving...' : 'Record Payment'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
@@ -895,14 +901,50 @@ const PurchaseOrdersTab = () => {
 
 const FinancialReportsTab = () => {
   const [reportType, setReportType] = useState('');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const reports = [
-    { value: 'pl', label: 'Profit & Loss Statement' },
-    { value: 'balance_sheet', label: 'Balance Sheet' },
-    { value: 'cashflow', label: 'Cash Flow Statement' },
-    { value: 'ar_aging', label: 'Accounts Receivable Aging' },
-    { value: 'ap_aging', label: 'Accounts Payable Aging' }
+    { value: 'pl', label: 'Profit & Loss Summary' },
+    { value: 'ar_aging', label: 'Accounts Receivable (Order Payments)' },
+    { value: 'inventory_value', label: 'Inventory Valuation' }
   ];
+
+  const generateReport = async () => {
+    if (!reportType) {
+      toast.error('Please select a report type');
+      return;
+    }
+    setLoading(true);
+    try {
+      let data = {};
+      if (reportType === 'pl') {
+        const [ordersRes, paymentsRes] = await Promise.all([
+          ordersAPI.getOrders({ limit: 500 }),
+          paymentsAPI.getPayments()
+        ]);
+        const orders = ordersRes.data.data || [];
+        const payments = paymentsRes.data.data || [];
+        const totalRevenue = orders.reduce((sum, o) => sum + (o.totalValue || 0), 0);
+        const totalPaymentsReceived = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        data = { totalRevenue, totalPaymentsReceived, orders: orders.length, payments: payments.length };
+      } else if (reportType === 'ar_aging') {
+        const response = await ordersAPI.getOrders({ limit: 500 });
+        const orders = response.data.data || [];
+        const unpaid = orders.filter(o => o.paymentStatus !== 'paid');
+        data = { unpaidOrders: unpaid };
+      } else if (reportType === 'inventory_value') {
+        const response = await inventoryAPI.getInventory({ limit: 500 });
+        data = { inventory: response.data.data || [], totals: response.data.totals || [] };
+      }
+      setReportData({ type: reportType, ...data });
+    } catch (error) {
+      toast.error('Failed to generate report');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -915,106 +957,103 @@ const FinancialReportsTab = () => {
             <Select
               label="Report Type"
               value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
+              onChange={(e) => { setReportType(e.target.value); setReportData(null); }}
             >
               <option value="">Select Report</option>
               {reports.map(report => (
                 <option key={report.value} value={report.value}>{report.label}</option>
               ))}
             </Select>
-            <Input
-              label="From Date"
-              type="date"
-            />
-            <Input
-              label="To Date"
-              type="date"
-            />
+            <Input label="From Date" type="date" value={dateRange.from} onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })} />
+            <Input label="To Date" type="date" value={dateRange.to} onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })} />
           </div>
           <div className="mt-4">
-            <Button>Generate Report</Button>
+            <Button onClick={generateReport} disabled={loading}>
+              {loading ? 'Generating...' : 'Generate Report'}
+            </Button>
           </div>
         </CardBody>
       </Card>
 
-      {reportType === 'pl' && (
+      {reportData && reportData.type === 'pl' && (
         <Card className="mt-6">
           <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">Profit & Loss Statement</h3>
-            <p className="text-sm text-gray-600">For the period: January 2026</p>
+            <h3 className="text-lg font-semibold text-gray-900">Profit & Loss Summary</h3>
           </CardHeader>
           <CardBody>
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">Revenue</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Sales Revenue</span>
-                    <span className="font-medium">₹12,50,000</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Total Revenue</span>
-                    <span className="font-bold">₹12,50,000</span>
-                  </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">Total Order Revenue</p>
+                  <p className="text-2xl font-bold text-green-700">₹{reportData.totalRevenue?.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{reportData.orders} orders</p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">Total Payments Received</p>
+                  <p className="text-2xl font-bold text-blue-700">₹{reportData.totalPaymentsReceived?.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{reportData.payments} payments</p>
                 </div>
               </div>
-
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">Cost of Goods Sold</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Raw Materials</span>
-                    <span className="font-medium">₹5,00,000</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Labor</span>
-                    <span className="font-medium">₹2,00,000</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Total COGS</span>
-                    <span className="font-bold">₹7,00,000</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex justify-between text-lg">
-                  <span className="font-semibold">Gross Profit</span>
-                  <span className="font-bold text-green-600">₹5,50,000</span>
+                  <span className="font-semibold">Outstanding Receivables</span>
+                  <span className="font-bold text-red-600">₹{(reportData.totalRevenue - reportData.totalPaymentsReceived).toLocaleString()}</span>
                 </div>
               </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">Operating Expenses</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Salaries</span>
-                    <span className="font-medium">₹1,50,000</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Utilities</span>
-                    <span className="font-medium">₹50,000</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Maintenance</span>
-                    <span className="font-medium">₹30,000</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Total Operating Expenses</span>
-                    <span className="font-bold">₹2,30,000</span>
-                  </div>
-                </div>
-              </div>
+      {reportData && reportData.type === 'ar_aging' && (
+        <Card className="mt-6">
+          <CardHeader>
+            <h3 className="text-lg font-semibold text-gray-900">Accounts Receivable</h3>
+            <p className="text-sm text-gray-600">{reportData.unpaidOrders?.length || 0} unpaid orders</p>
+          </CardHeader>
+          <CardBody className="p-0">
+            <Table>
+              <Thead>
+                <tr>
+                  <Th>Order No</Th>
+                  <Th>Customer</Th>
+                  <Th>Total Value</Th>
+                  <Th>Advance</Th>
+                  <Th>Balance Due</Th>
+                  <Th>Status</Th>
+                </tr>
+              </Thead>
+              <Tbody>
+                {(reportData.unpaidOrders || []).map(order => (
+                  <tr key={order._id}>
+                    <Td className="font-medium">{order.orderNo}</Td>
+                    <Td>{order.customerId?.name || order.customerName}</Td>
+                    <Td>₹{(order.totalValue || 0).toLocaleString()}</Td>
+                    <Td className="text-green-600">₹{(order.advanceAmount || 0).toLocaleString()}</Td>
+                    <Td className="text-red-600 font-medium">₹{((order.totalValue || 0) - (order.advanceAmount || 0)).toLocaleString()}</Td>
+                    <Td><Badge variant={order.paymentStatus === 'partial' ? 'warning' : 'default'}>{(order.paymentStatus || 'unpaid').toUpperCase()}</Badge></Td>
+                  </tr>
+                ))}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
+      )}
 
-              <div className="bg-blue-50 p-4 rounded-lg border-t-4 border-blue-500">
-                <div className="flex justify-between text-xl">
-                  <span className="font-bold">Net Profit</span>
-                  <span className="font-bold text-blue-600">₹3,20,000</span>
+      {reportData && reportData.type === 'inventory_value' && (
+        <Card className="mt-6">
+          <CardHeader>
+            <h3 className="text-lg font-semibold text-gray-900">Inventory Valuation</h3>
+          </CardHeader>
+          <CardBody>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {(reportData.totals || []).map((t, i) => (
+                <div key={i} className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 capitalize">{t._id || 'Unknown'}</p>
+                  <p className="text-xl font-bold text-blue-700">₹{(t.totalValue || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Qty: {(t.totalQty || 0).toLocaleString()}</p>
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  Profit Margin: 25.6%
-                </div>
-              </div>
+              ))}
             </div>
           </CardBody>
         </Card>

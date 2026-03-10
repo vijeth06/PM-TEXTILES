@@ -77,7 +77,7 @@ exports.createPayment = async (req, res) => {
 
     const paidAmount = totalPaid.length > 0 ? totalPaid[0].total : 0;
     
-    if (paidAmount >= orderDoc.totalAmount) {
+    if (paidAmount >= orderDoc.totalValue) {
       orderDoc.paymentStatus = 'paid';
     } else if (paidAmount > 0) {
       orderDoc.paymentStatus = 'partial';

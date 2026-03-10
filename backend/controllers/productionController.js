@@ -12,7 +12,13 @@ exports.getProductionPlans = async (req, res, next) => {
 
     // Build query
     const query = {};
-    if (status) query.status = status;
+    if (status) {
+      const statuses = String(status)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      query.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
+    }
     if (priority) query.priority = priority;
     if (startDate || endDate) {
       query.startDate = {};
@@ -186,7 +192,7 @@ exports.deleteProductionPlan = async (req, res, next) => {
       });
     }
 
-    await plan.remove();
+    await ProductionPlan.findByIdAndDelete(req.params.id);
     await ProductionStage.deleteMany({ planId: plan._id });
 
     res.json({
@@ -231,7 +237,23 @@ exports.updateProductionStage = async (req, res, next) => {
       });
     }
 
-    stage = await ProductionStage.findByIdAndUpdate(req.params.id, req.body, {
+    const updatePayload = { ...req.body };
+
+    // Server controls completion attribution and timeline fields.
+    delete updatePayload.completedBy;
+    if (updatePayload.status === 'in_progress' && !updatePayload.actualStartTime) {
+      updatePayload.actualStartTime = new Date();
+    }
+    if (updatePayload.status === 'completed') {
+      if (!updatePayload.actualEndTime) {
+        updatePayload.actualEndTime = new Date();
+      }
+      updatePayload.completedBy = req.user._id;
+    } else {
+      updatePayload.completedBy = null;
+    }
+
+    stage = await ProductionStage.findByIdAndUpdate(req.params.id, updatePayload, {
       new: true,
       runValidators: true
     });

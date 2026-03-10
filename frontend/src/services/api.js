@@ -21,6 +21,22 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Handle 401 responses (token expired/invalid)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Production API
 export const productionAPI = {
   getPlans: (params) => api.get('/production/plans', { params }),
@@ -102,6 +118,18 @@ export const reportsAPI = {
   getProfitPerOrder: (params) => api.get('/reports/profit-per-order', { params })
 };
 
+// Export/Import API
+export const exportAPI = {
+  getImportTemplate: () => api.get('/export/import/template', { responseType: 'blob' }),
+  importExcel: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/export/import/excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+};
+
 // Dashboard API
 export const dashboardAPI = {
   getProductionTrend: (params) => api.get('/dashboard/production-trend', { params }),
@@ -160,6 +188,76 @@ export const settingsAPI = {
   getSystemInfo: () => api.get('/settings/system-info'),
   backup: () => api.post('/settings/backup'),
   restore: (data) => api.post('/settings/restore', data)
+};
+
+// Payments API
+export const paymentsAPI = {
+  getPayments: (params) => api.get('/payments', { params }),
+  getPayment: (id) => api.get(`/payments/${id}`),
+  createPayment: (data) => api.post('/payments', data),
+  updatePayment: (id, data) => api.put(`/payments/${id}`, data),
+  deletePayment: (id) => api.delete(`/payments/${id}`),
+  getOrderSummary: (orderId) => api.get(`/payments/order/${orderId}/summary`)
+};
+
+// Quality API
+export const qualityAPI = {
+  getChecks: (params) => api.get('/quality', { params }),
+  getCheck: (id) => api.get(`/quality/${id}`),
+  createCheck: (data) => api.post('/quality', data),
+  updateCheck: (id, data) => api.put(`/quality/${id}`, data),
+  getStatistics: () => api.get('/quality/statistics')
+};
+
+// Batches API
+export const batchesAPI = {
+  getBatches: (params) => api.get('/batches', { params }),
+  getBatch: (id) => api.get(`/batches/${id}`),
+  createBatch: (data) => api.post('/batches', data),
+  updateBatch: (id, data) => api.put(`/batches/${id}`, data)
+};
+
+// Schedules API
+export const schedulesAPI = {
+  getSchedules: (params) => api.get('/schedules', { params }),
+  getSchedule: (id) => api.get(`/schedules/${id}`),
+  createSchedule: (data) => api.post('/schedules', data),
+  updateSchedule: (id, data) => api.put(`/schedules/${id}`, data),
+  deleteSchedule: (id) => api.delete(`/schedules/${id}`)
+};
+
+// Textile API
+export const textileAPI = {
+  // Loom Production
+  getLoomProductions: (params) => api.get('/textile/loom-production', { params }),
+  getLoomProduction: (id) => api.get(`/textile/loom-production/${id}`),
+  createLoomProduction: (data) => api.post('/textile/loom-production', data),
+  updateLoomProduction: (id, data) => api.put(`/textile/loom-production/${id}`, data),
+  getEfficiencyDashboard: () => api.get('/textile/loom-production/efficiency-dashboard'),
+  getLiveLoomStatus: () => api.get('/textile/loom-production/live-status'),
+  recordDefect: (id, data) => api.post(`/textile/loom-production/${id}/defects`, data),
+  recordStoppage: (id, data) => api.post(`/textile/loom-production/${id}/stoppages`, data),
+  // Dyeing
+  getDyeingBatches: (params) => api.get('/textile/dyeing', { params }),
+  getDyeingBatch: (id) => api.get(`/textile/dyeing/${id}`),
+  createDyeingBatch: (data) => api.post('/textile/dyeing', data),
+  updateDyeingBatch: (id, data) => api.put(`/textile/dyeing/${id}`, data),
+  getDyeingStatistics: () => api.get('/textile/dyeing/statistics'),
+  getShadeMatchingQueue: () => api.get('/textile/dyeing/shade-matching-queue'),
+  submitShadeMatching: (id, data) => api.post(`/textile/dyeing/${id}/shade-matching`, data),
+  approveShade: (id) => api.post(`/textile/dyeing/${id}/approve-shade`),
+  rejectShade: (id, data) => api.post(`/textile/dyeing/${id}/reject-shade`, data),
+  recordDyeingQC: (id, data) => api.post(`/textile/dyeing/${id}/quality-check`, data),
+  // Color Lab
+  getColorLabRequests: (params) => api.get('/textile/color-lab', { params }),
+  getColorLabRequest: (id) => api.get(`/textile/color-lab/${id}`),
+  createColorLabRequest: (data) => api.post('/textile/color-lab', data),
+  getColorLabQueue: () => api.get('/textile/color-lab/queue'),
+  getColorLabStatistics: () => api.get('/textile/color-lab/statistics'),
+  submitColorLabShade: (id, data) => api.post(`/textile/color-lab/${id}/submit-shade`, data),
+  approveColorLabShade: (id) => api.post(`/textile/color-lab/${id}/approve-shade`),
+  rejectColorLabShade: (id, data) => api.post(`/textile/color-lab/${id}/reject-shade`, data),
+  recordBulkProduction: (id, data) => api.post(`/textile/color-lab/${id}/bulk-production`, data)
 };
 
 export default api;

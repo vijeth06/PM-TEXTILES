@@ -3,7 +3,7 @@ import { productionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { useProductionUpdates } from '../hooks/useRealTimeUpdates';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Pagination } from '../components/common';
+import { Card, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Pagination } from '../components/common';
 
 const Production = () => {
   const [plans, setPlans] = useState([]);
@@ -30,6 +30,7 @@ const Production = () => {
 
   useEffect(() => {
     fetchPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination.currentPage]);
 
   const fetchPlans = async () => {
@@ -54,6 +55,11 @@ const Production = () => {
 
   const handleCreatePlan = () => {
     setSelectedPlan(null);
+    setShowModal(true);
+  };
+
+  const handleEditPlan = (plan) => {
+    setSelectedPlan(plan);
     setShowModal(true);
   };
 
@@ -82,7 +88,7 @@ const Production = () => {
       completed: 'success',
       cancelled: 'danger'
     };
-    return <Badge variant={variants[status]}>{status.replace('_', ' ').toUpperCase()}</Badge>;
+    return <Badge variant={variants[status]}>{status.replace(/_/g, ' ').toUpperCase()}</Badge>;
   };
 
   const getPriorityBadge = (priority) => {
@@ -224,6 +230,16 @@ const Production = () => {
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
+                          {(plan.status === 'draft' || plan.status === 'approved') && (
+                            <button
+                              onClick={() => handleEditPlan(plan)}
+                              className="text-yellow-600 hover:text-yellow-800"
+                              title="Edit"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                          {(plan.status === 'draft' || plan.status === 'approved') && (
                           <button
                             onClick={() => handleDeletePlan(plan._id)}
                             className="text-red-600 hover:text-red-800"
@@ -231,6 +247,7 @@ const Production = () => {
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
+                          )}
                         </div>
                       </Td>
                     </tr>
@@ -263,17 +280,19 @@ const Production = () => {
 };
 
 const ProductionPlanModal = ({ plan, onClose, onSave }) => {
+  const isViewMode = plan && plan.status !== 'draft' && plan.status !== 'approved';
   const [formData, setFormData] = useState({
-    startDate: '',
-    endDate: '',
+    startDate: plan ? new Date(plan.startDate).toISOString().split('T')[0] : '',
+    endDate: plan?.endDate ? new Date(plan.endDate).toISOString().split('T')[0] : '',
     productDetails: {
-      sku: '',
-      productName: '',
-      targetQuantity: '',
-      uom: 'kg'
+      sku: plan?.productDetails?.sku || '',
+      productName: plan?.productDetails?.productName || '',
+      targetQuantity: plan?.productDetails?.targetQuantity || '',
+      uom: plan?.productDetails?.uom || 'kg'
     },
-    priority: 'normal',
-    stagesSequence: [
+    priority: plan?.priority || 'normal',
+    status: plan?.status || 'draft',
+    stagesSequence: plan?.stagesSequence || [
       { stageName: 'yarn_issue', sequence: 1 },
       { stageName: 'weaving', sequence: 2 },
       { stageName: 'dyeing', sequence: 3 },
@@ -281,7 +300,28 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
       { stageName: 'packing', sequence: 5 }
     ]
   });
+  const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [stagesLoading, setStagesLoading] = useState(false);
+
+  useEffect(() => {
+    if (plan?._id) {
+      fetchStages();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan]);
+
+  const fetchStages = async () => {
+    try {
+      setStagesLoading(true);
+      const response = await productionAPI.getStages(plan._id);
+      setStages(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch stages:', error);
+    } finally {
+      setStagesLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -303,14 +343,34 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
     }
   };
 
+  const getStageStatusColor = (status) => {
+    const colors = {
+      pending: 'bg-gray-100 text-gray-800',
+      in_progress: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
+      skipped: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
   return (
-    <Modal isOpen={true} onClose={onClose} title={plan ? 'View Production Plan' : 'Create Production Plan'} size="lg">
+    <Modal isOpen={true} onClose={onClose} title={plan ? (isViewMode ? `View Plan: ${plan.planNo}` : `Edit Plan: ${plan.planNo}`) : 'Create Production Plan'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {plan && (
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-blue-800"><strong>Plan No:</strong> {plan.planNo}</span>
+              <span className="text-sm text-blue-800"><strong>Progress:</strong> {plan.completionPercent || 0}%</span>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Start Date"
             type="date"
             required
+            disabled={isViewMode}
             value={formData.startDate}
             onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
           />
@@ -318,6 +378,7 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
             label="End Date"
             type="date"
             required
+            disabled={isViewMode}
             value={formData.endDate}
             onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
           />
@@ -327,6 +388,7 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
           <Input
             label="Product SKU"
             required
+            disabled={isViewMode}
             value={formData.productDetails.sku}
             onChange={(e) => setFormData({
               ...formData,
@@ -336,6 +398,7 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
           <Input
             label="Product Name"
             required
+            disabled={isViewMode}
             value={formData.productDetails.productName}
             onChange={(e) => setFormData({
               ...formData,
@@ -349,6 +412,7 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
             label="Target Quantity"
             type="number"
             required
+            disabled={isViewMode}
             value={formData.productDetails.targetQuantity}
             onChange={(e) => setFormData({
               ...formData,
@@ -358,6 +422,7 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
           <Select
             label="Unit of Measurement"
             required
+            disabled={isViewMode}
             value={formData.productDetails.uom}
             onChange={(e) => setFormData({
               ...formData,
@@ -371,25 +436,84 @@ const ProductionPlanModal = ({ plan, onClose, onSave }) => {
           </Select>
         </div>
 
-        <Select
-          label="Priority"
-          required
-          value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-        >
-          <option value="low">Low</option>
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-        </Select>
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            label="Priority"
+            required
+            disabled={isViewMode}
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+          >
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </Select>
+          {plan && (
+            <Select
+              label="Status"
+              disabled={isViewMode}
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            >
+              <option value="draft">Draft</option>
+              <option value="approved">Approved</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </Select>
+          )}
+        </div>
+
+        {/* Stages Section */}
+        {plan && stages.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Production Stages</h3>
+            {stagesLoading ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <div className="space-y-2">
+                {stages.map((stage, idx) => (
+                  <div key={stage._id || idx} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                        {stage.sequence || idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-medium capitalize">{stage.stageName?.replace(/_/g, ' ')}</span>
+                        {stage.outputQuantity > 0 && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            Output: {stage.outputQuantity} {stage.uom || ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${stage.completionPercent || 0}%` }}
+                        ></div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStageStatusColor(stage.status)}`}>
+                        {stage.status?.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex justify-end space-x-3 pt-4">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {isViewMode ? 'Close' : 'Cancel'}
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : plan ? 'Update' : 'Create'}
-          </Button>
+          {!isViewMode && (
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : plan ? 'Update Plan' : 'Create Plan'}
+            </Button>
+          )}
         </div>
       </form>
     </Modal>

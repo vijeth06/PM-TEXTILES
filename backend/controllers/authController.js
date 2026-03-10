@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { sendEmail, emailTemplates } = require('../services/emailService');
+const { createAuditLog } = require('./auditController');
 
 // Generate JWT Token
 const generateToken = (id, role) => {
@@ -16,6 +17,25 @@ const generateRefreshToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
     expiresIn: '30d'
   });
+};
+
+const getDefaultPermissionsByRole = (role) => {
+  switch (role) {
+    case 'admin':
+      return ['system_admin'];
+    case 'production_manager':
+      return ['view_production', 'manage_production', 'view_inventory', 'view_reports'];
+    case 'store_manager':
+      return ['view_inventory', 'manage_inventory', 'view_production', 'view_reports'];
+    case 'sales_executive':
+      return ['view_orders', 'manage_orders', 'view_customers', 'manage_customers', 'view_reports'];
+    case 'qa_inspector':
+      return ['view_production', 'view_inventory', 'view_reports'];
+    case 'management':
+      return ['view_production', 'view_inventory', 'view_orders', 'view_reports'];
+    default:
+      return [];
+  }
 };
 
 // @desc    Register user
@@ -38,30 +58,13 @@ exports.register = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Set default permissions based on role
-    let userPermissions = permissions || [];
-    if (!permissions) {
-      switch (role) {
-        case 'admin':
-          userPermissions = ['system_admin'];
-          break;
-        case 'production_manager':
-          userPermissions = ['view_production', 'manage_production', 'view_inventory', 'view_reports'];
-          break;
-        case 'store_manager':
-          userPermissions = ['view_inventory', 'manage_inventory', 'view_production', 'view_reports'];
-          break;
-        case 'sales_executive':
-          userPermissions = ['view_orders', 'manage_orders', 'view_customers', 'manage_customers', 'view_reports'];
-          break;
-        case 'qa_inspector':
-          userPermissions = ['view_production', 'view_inventory', 'view_reports'];
-          break;
-        case 'management':
-          userPermissions = ['view_production', 'view_inventory', 'view_orders', 'view_reports'];
-          break;
-      }
-    }
+    // Set default permissions based on role when incoming list is empty/missing.
+    const normalizedPermissions = Array.isArray(permissions)
+      ? permissions.filter(Boolean)
+      : [];
+    const userPermissions = normalizedPermissions.length > 0
+      ? normalizedPermissions
+      : getDefaultPermissionsByRole(role);
 
     // Create user
     const user = await User.create({
@@ -150,6 +153,18 @@ exports.login = async (req, res, next) => {
           lastLogin: user.lastLogin
         }
       }
+    });
+
+    // Fire-and-forget login audit entry.
+    createAuditLog({
+      user: user._id,
+      action: 'login',
+      entityType: 'auth',
+      description: `LOGIN user ${user.username}`,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    }).catch((err) => {
+      console.error('Login audit logging failed:', err?.message || err);
     });
   } catch (error) {
     next(error);

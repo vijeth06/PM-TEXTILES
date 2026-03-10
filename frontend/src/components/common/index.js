@@ -61,6 +61,7 @@ export const Button = ({
 export const Input = ({ 
   label, 
   error, 
+  help,
   className = '',
   required = false,
   ...props 
@@ -76,8 +77,10 @@ export const Input = ({
       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
         error ? 'border-red-500' : 'border-gray-300'
       }`}
+      required={required}
       {...props}
     />
+    {help && !error && <p className="mt-1 text-sm text-gray-500">{help}</p>}
     {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
   </div>
 );
@@ -101,6 +104,7 @@ export const Select = ({
       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
         error ? 'border-red-500' : 'border-gray-300'
       }`}
+      required={required}
       {...props}
     >
       {children}

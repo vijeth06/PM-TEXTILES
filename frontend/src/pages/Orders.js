@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ordersAPI, customersAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { useOrderUpdates } from '../hooks/useRealTimeUpdates';
-import { PlusIcon, TruckIcon, EyeIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TruckIcon, EyeIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { Card, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Pagination } from '../components/common';
 
 const Orders = () => {
@@ -20,17 +20,18 @@ const Orders = () => {
     fetchOrders();
     
     // Show appropriate notifications
-    if (data.type === 'order_created') {
+    if (data.event === 'order_created') {
       toast.success(`New order created: ${data.orderNo}`);
-    } else if (data.type === 'order_updated') {
+    } else if (data.event === 'order_updated') {
       toast.info(`Order ${data.orderNo} updated`);
-    } else if (data.type === 'order_dispatched') {
+    } else if (data.event === 'order_dispatched') {
       toast.success(`Order ${data.orderNo} dispatched`);
     }
   });
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination.currentPage]);
 
   const fetchOrders = async () => {
@@ -65,6 +66,12 @@ const Orders = () => {
     setShowModal(true);
   };
 
+  const handleEditOrder = (order) => {
+    setSelectedOrder(order);
+    setModalType('edit');
+    setShowModal(true);
+  };
+
   const handleDispatch = (order) => {
     setSelectedOrder(order);
     setModalType('dispatch');
@@ -93,7 +100,7 @@ const Orders = () => {
       delivered: 'success',
       cancelled: 'danger'
     };
-    return <Badge variant={variants[status]}>{status.replace('_', ' ').toUpperCase()}</Badge>;
+    return <Badge variant={variants[status]}>{status.replace(/_/g, ' ').toUpperCase()}</Badge>;
   };
 
   const getPriorityBadge = (priority) => {
@@ -199,8 +206,8 @@ const Orders = () => {
                       </Td>
                       <Td>
                         <div>
-                          <div className="font-medium">{order.customer?.name || 'N/A'}</div>
-                          <div className="text-xs text-gray-500">{order.customerOrderNo}</div>
+                          <div className="font-medium">{order.customerId?.name || order.customerName || 'N/A'}</div>
+                          <div className="text-xs text-gray-500">{order.customerId?.code || order.customerCode || '-'}</div>
                         </div>
                       </Td>
                       <Td>{new Date(order.orderDate).toLocaleDateString()}</Td>
@@ -211,8 +218,8 @@ const Orders = () => {
                       </Td>
                       <Td>
                         <div>
-                          <div className="font-medium">₹{order.totalAmount?.toLocaleString() || 0}</div>
-                          <div className="text-xs text-gray-500">Paid: ₹{order.paidAmount || 0}</div>
+                          <div className="font-medium">₹{order.totalValue?.toLocaleString() || 0}</div>
+                          <div className="text-xs text-gray-500">Advance: ₹{order.advanceAmount || 0}</div>
                         </div>
                       </Td>
                       <Td>{getStatusBadge(order.status)}</Td>
@@ -226,6 +233,15 @@ const Orders = () => {
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
+                          {(order.status === 'pending' || order.status === 'confirmed') && (
+                            <button
+                              onClick={() => handleEditOrder(order)}
+                              className="text-yellow-600 hover:text-yellow-800"
+                              title="Edit"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                          )}
                           {order.status === 'packed' && (
                             <button
                               onClick={() => handleDispatch(order)}
@@ -235,6 +251,7 @@ const Orders = () => {
                               <TruckIcon className="h-5 w-5" />
                             </button>
                           )}
+                          {(order.status === 'pending' || order.status === 'confirmed') && (
                           <button
                             onClick={() => handleDeleteOrder(order._id)}
                             className="text-red-600 hover:text-red-800"
@@ -242,6 +259,7 @@ const Orders = () => {
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
+                          )}
                         </div>
                       </Td>
                     </tr>
@@ -268,6 +286,22 @@ const Orders = () => {
           }}
         />
       )}
+      {showModal && modalType === 'view' && selectedOrder && (
+        <ViewOrderModal
+          order={selectedOrder}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+      {showModal && modalType === 'edit' && selectedOrder && (
+        <EditOrderModal
+          order={selectedOrder}
+          onClose={() => setShowModal(false)}
+          onSuccess={() => {
+            setShowModal(false);
+            fetchOrders();
+          }}
+        />
+      )}
       {showModal && modalType === 'dispatch' && (
         <DispatchModal
           order={selectedOrder}
@@ -282,18 +316,214 @@ const Orders = () => {
   );
 };
 
+const ViewOrderModal = ({ order, onClose }) => {
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+        const response = await ordersAPI.getOrder(order._id);
+        setOrderDetails(response.data.data);
+      } catch (error) {
+        toast.error('Failed to load order details');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [order._id]);
+
+  if (loading) {
+    return (
+      <Modal isOpen={true} onClose={onClose} title="Order Details" size="xl">
+        <div className="py-12"><LoadingSpinner size="lg" /></div>
+      </Modal>
+    );
+  }
+
+  const data = orderDetails || order;
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title={`Order: ${data.orderNo}`} size="xl">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+          <div>
+            <p className="text-sm text-gray-500">Customer</p>
+            <p className="font-semibold">{data.customerId?.name || data.customerName}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Status</p>
+            <p className="font-semibold capitalize">{data.status?.replace(/_/g, ' ')}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Order Date</p>
+            <p className="font-semibold">{new Date(data.orderDate || data.createdAt).toLocaleDateString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Promise Date</p>
+            <p className="font-semibold">{new Date(data.promiseDate).toLocaleDateString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Value</p>
+            <p className="font-semibold text-green-700">₹{data.totalValue?.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Payment Status</p>
+            <p className="font-semibold capitalize">{data.paymentStatus || 'unpaid'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Priority</p>
+            <p className="font-semibold capitalize">{data.priority}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Advance Amount</p>
+            <p className="font-semibold">₹{data.advanceAmount?.toLocaleString() || 0}</p>
+          </div>
+        </div>
+
+        {data.items && data.items.length > 0 && (
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">Order Items</h3>
+            <Table>
+              <Thead>
+                <tr>
+                  <Th>SKU</Th>
+                  <Th>Product</Th>
+                  <Th>Qty</Th>
+                  <Th>UOM</Th>
+                  <Th>Price</Th>
+                  <Th>Total</Th>
+                </tr>
+              </Thead>
+              <Tbody>
+                {data.items.map((item, idx) => (
+                  <tr key={idx}>
+                    <Td>{item.sku}</Td>
+                    <Td>{item.productName}</Td>
+                    <Td>{item.orderedQuantity || item.quantity}</Td>
+                    <Td>{item.uom}</Td>
+                    <Td>₹{item.unitPrice?.toLocaleString()}</Td>
+                    <Td>₹{((item.orderedQuantity || item.quantity) * item.unitPrice)?.toLocaleString()}</Td>
+                  </tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
+        )}
+
+        {data.deliveryAddress && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-1">Delivery Address</h3>
+            <p className="text-sm text-gray-600">
+              {typeof data.deliveryAddress === 'object'
+                ? `${data.deliveryAddress.street || ''}, ${data.deliveryAddress.city || ''}, ${data.deliveryAddress.state || ''} ${data.deliveryAddress.pinCode || ''}`
+                : data.deliveryAddress
+              }
+            </p>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-4">
+          <Button variant="secondary" onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+const EditOrderModal = ({ order, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    priority: order.priority || 'normal',
+    promiseDate: order.promiseDate ? new Date(order.promiseDate).toISOString().split('T')[0] : '',
+    status: order.status || 'pending',
+    deliveryInstructions: order.deliveryInstructions || ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await ordersAPI.updateOrder(order._id, formData);
+      toast.success('Order updated successfully');
+      onSuccess();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title={`Edit Order: ${order.orderNo}`} size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-blue-50 p-3 rounded">
+          <p className="text-sm text-blue-800">
+            <strong>Customer:</strong> {order.customerId?.name || order.customerName} | <strong>Total:</strong> ₹{order.totalValue?.toLocaleString()}
+          </p>
+        </div>
+
+        <Select
+          label="Status"
+          value={formData.status}
+          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+        >
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="in_production">In Production</option>
+          <option value="packed">Packed</option>
+        </Select>
+
+        <Select
+          label="Priority"
+          value={formData.priority}
+          onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+        >
+          <option value="low">Low</option>
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </Select>
+
+        <Input
+          label="Promise Date"
+          type="date"
+          value={formData.promiseDate}
+          onChange={(e) => setFormData({ ...formData, promiseDate: e.target.value })}
+        />
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Instructions</label>
+          <textarea
+            className="w-full border rounded-md p-2 text-sm"
+            rows={3}
+            value={formData.deliveryInstructions}
+            onChange={(e) => setFormData({ ...formData, deliveryInstructions: e.target.value })}
+          />
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
 const CreateOrderModal = ({ onClose, onSuccess }) => {
   const [customers, setCustomers] = useState([]);
   const [formData, setFormData] = useState({
-    customer: '',
-    customerOrderNo: '',
-    orderDate: new Date().toISOString().split('T')[0],
+    customerId: '',
     promiseDate: '',
     priority: 'normal',
     items: [{
       sku: '',
       productName: '',
-      orderedQty: '',
+      quantity: '',
       uom: 'kg',
       unitPrice: '',
       discount: 0,
@@ -320,7 +550,21 @@ const CreateOrderModal = ({ onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      await ordersAPI.createOrder(formData);
+      const payload = {
+        customerId: formData.customerId,
+        promiseDate: formData.promiseDate,
+        priority: formData.priority,
+        items: formData.items.map((item) => ({
+          sku: item.sku,
+          productName: item.productName,
+          quantity: Number(item.quantity),
+          uom: item.uom,
+          unitPrice: Number(item.unitPrice),
+          discount: Number(item.discount || 0),
+          taxPercent: Number(item.taxPercent || 0)
+        }))
+      };
+      await ordersAPI.createOrder(payload);
       toast.success('Order created successfully');
       onSuccess();
     } catch (error) {
@@ -336,7 +580,7 @@ const CreateOrderModal = ({ onClose, onSuccess }) => {
       items: [...formData.items, {
         sku: '',
         productName: '',
-        orderedQty: '',
+        quantity: '',
         uom: 'kg',
         unitPrice: '',
         discount: 0,
@@ -358,33 +602,19 @@ const CreateOrderModal = ({ onClose, onSuccess }) => {
           <Select
             label="Customer"
             required
-            value={formData.customer}
-            onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
+            value={formData.customerId}
+            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
           >
             <option value="">Select Customer</option>
             {customers.map((customer) => (
               <option key={customer._id} value={customer._id}>
-                {customer.name} ({customer.customerCode})
+                {customer.name} ({customer.code})
               </option>
             ))}
           </Select>
-
-          <Input
-            label="Customer Order No"
-            required
-            value={formData.customerOrderNo}
-            onChange={(e) => setFormData({ ...formData, customerOrderNo: e.target.value })}
-          />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <Input
-            label="Order Date"
-            type="date"
-            required
-            value={formData.orderDate}
-            onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })}
-          />
+        <div className="grid grid-cols-2 gap-4">
           <Input
             label="Promise Date"
             type="date"
@@ -429,8 +659,8 @@ const CreateOrderModal = ({ onClose, onSuccess }) => {
                 placeholder="Qty"
                 type="number"
                 required
-                value={item.orderedQty}
-                onChange={(e) => updateItem(index, 'orderedQty', e.target.value)}
+                value={item.quantity}
+                onChange={(e) => updateItem(index, 'quantity', e.target.value)}
               />
               <Select
                 value={item.uom}
@@ -448,7 +678,7 @@ const CreateOrderModal = ({ onClose, onSuccess }) => {
                 onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
               />
               <Input
-                placeholder="Disc %"
+                placeholder="Discount"
                 type="number"
                 value={item.discount}
                 onChange={(e) => updateItem(index, 'discount', e.target.value)}
@@ -486,7 +716,19 @@ const DispatchModal = ({ order, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      await ordersAPI.dispatchOrder(order._id, formData);
+      const payload = {
+        transportDetails: {
+          mode: formData.transportMode,
+          carrierName: formData.carrierName,
+          vehicleNo: formData.vehicleNo,
+          driverName: formData.driverName,
+          driverContact: formData.driverContact
+        },
+        packingDetails: {
+          awbNo: formData.awbNo
+        }
+      };
+      await ordersAPI.dispatchOrder(order._id, payload);
       toast.success('Order dispatched successfully');
       onSuccess();
     } catch (error) {
@@ -501,7 +743,7 @@ const DispatchModal = ({ order, onClose, onSuccess }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="bg-blue-50 p-3 rounded">
           <p className="text-sm text-blue-800">
-            <strong>Order No:</strong> {order.orderNo} | <strong>Customer:</strong> {order.customer?.name}
+            <strong>Order No:</strong> {order.orderNo} | <strong>Customer:</strong> {order.customerId?.name || order.customerName || 'N/A'}
           </p>
         </div>
 

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { textileAPI } from '../services/api';
+import toast from 'react-hot-toast';
 import { StatCard, Card, SectionHeader } from '../components/UIComponents';
 import {
   CogIcon,
   BeakerIcon,
   SwatchIcon,
-  DocumentChartBarIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon,
-  ChartBarIcon
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 export default function TextileProduction() {
@@ -16,36 +16,54 @@ export default function TextileProduction() {
   const [loomData, setLoomData] = useState([]);
   const [dyeingData, setDyeingData] = useState([]);
   const [shadeMatching, setShadeMatching] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loomStats, setLoomStats] = useState({ total: 0, running: 0, idle: 0, breakdown: 0 });
+  const [dyeingStats, setDyeingStats] = useState({ total: 0, inProgress: 0, approved: 0, redip: 0 });
 
   useEffect(() => {
-    loadMockData();
-  }, []);
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
-  const loadMockData = () => {
-    // Mock loom data
-    setLoomData([
-      { loomNo: 'L-001', fabric: 'Shirting 40s', efficiency: 92.5, production: 145, target: 155, status: 'running', weaver: 'John Doe', shift: 'Morning' },
-      { loomNo: 'L-002', fabric: 'Denim 12oz', efficiency: 88.3, production: 132, target: 150, status: 'running', weaver: 'Jane Smith', shift: 'Morning' },
-      { loomNo: 'L-003', fabric: 'Poplin 60s', efficiency: 95.2, production: 168, target: 175, status: 'running', weaver: 'Mike Johnson', shift: 'Morning' },
-      { loomNo: 'L-004', fabric: 'Twill 2/1', efficiency: 0, production: 0, target: 140, status: 'breakdown', weaver: '-', shift: 'Morning' },
-      { loomNo: 'L-005', fabric: 'Satin Weave', efficiency: 75.4, production: 98, target: 130, status: 'idle', weaver: 'Sarah Williams', shift: 'Morning' }
-    ]);
-
-    // Mock dyeing data
-    setDyeingData([
-      { batchNo: 'DYE-2024-001', color: 'Navy Blue', fabric: 'Cotton Poplin', quantity: 500, status: 'shade_checking', deltaE: 0.85, operator: 'Ahmed Ali' },
-      { batchNo: 'DYE-2024-002', color: 'Ruby Red', fabric: 'Shirting', quantity: 750, status: 'in_progress', deltaE: null, operator: 'Chen Wei' },
-      { batchNo: 'DYE-2024-003', color: 'Forest Green', fabric: 'Denim', quantity: 600, status: 'approved', deltaE: 0.65, operator: 'Raj Kumar' },
-      { batchNo: 'DYE-2024-004', color: 'Sunset Orange', fabric: 'Twill', quantity: 450, status: 'redip', deltaE: 1.85, operator: 'Maria Garcia' }
-    ]);
-
-    // Mock shade matching data
-    setShadeMatching([
-      { matchNo: 'CLR-001', customer: 'ABC Textiles', shade: 'Pantone 19-4052', attempts: 2, deltaE: 0.72, status: 'approved', priority: 'high' },
-      { matchNo: 'CLR-002', customer: 'XYZ Fashions', shade: 'Burgundy Red', attempts: 4, deltaE: 1.92, status: 'in_progress', priority: 'urgent' },
-      { matchNo: 'CLR-003', customer: 'Global Garments', shade: 'Mint Green', attempts: 1, deltaE: 1.15, status: 'pending', priority: 'medium' }
-    ]);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      if (activeTab === 'looms') {
+        const [productionsRes] = await Promise.allSettled([
+          textileAPI.getLoomProductions(),
+          textileAPI.getEfficiencyDashboard()
+        ]);
+        if (productionsRes.status === 'fulfilled') {
+          const prods = productionsRes.value.data.data || [];
+          setLoomData(prods);
+          const running = prods.filter(l => l.status === 'running').length;
+          const idle = prods.filter(l => l.status === 'idle').length;
+          const breakdown = prods.filter(l => l.status === 'breakdown').length;
+          setLoomStats({ total: prods.length, running, idle, breakdown });
+        }
+      } else if (activeTab === 'dyeing') {
+        const [batchesRes] = await Promise.allSettled([
+          textileAPI.getDyeingBatches(),
+          textileAPI.getDyeingStatistics()
+        ]);
+        if (batchesRes.status === 'fulfilled') {
+          const batches = batchesRes.value.data.data || [];
+          setDyeingData(batches);
+          const inProgress = batches.filter(b => b.status === 'in_progress').length;
+          const approved = batches.filter(b => b.status === 'approved' || b.status === 'completed').length;
+          const redip = batches.filter(b => b.status === 'redip').length;
+          setDyeingStats({ total: batches.length, inProgress, approved, redip });
+        }
+      } else if (activeTab === 'shadeMatching') {
+        const res = await textileAPI.getColorLabRequests();
+        setShadeMatching(res.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch textile data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -88,10 +106,10 @@ export default function TextileProduction() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Looms" value="120" unit="machines" color="blue" icon={CogIcon} trend="up" change="+3.2%" />
-        <StatCard title="Running" value="102" unit="active" color="green" icon={CheckCircleIcon} trend="up" change="+8.5%" />
-        <StatCard title="Idle" value="12" unit="machines" color="amber" icon={ClockIcon} trend="down" change="-5.1%" />
-        <StatCard title="Breakdown" value="6" unit="machines" color="red" icon={XCircleIcon} trend="up" change="+2.3%" />
+        <StatCard title="Total Looms" value={loomStats.total} unit="machines" color="blue" icon={CogIcon} />
+        <StatCard title="Running" value={loomStats.running} unit="active" color="green" icon={CheckCircleIcon} />
+        <StatCard title="Idle" value={loomStats.idle} unit="machines" color="amber" icon={ClockIcon} />
+        <StatCard title="Breakdown" value={loomStats.breakdown} unit="machines" color="red" icon={XCircleIcon} />
       </div>
 
       {/* Loom Status Table */}
@@ -113,30 +131,30 @@ export default function TextileProduction() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {loomData.map((loom) => (
-                <tr key={loom.loomNo} className="hover:bg-blue-50/50 transition-colors">
+                <tr key={loom._id || loom.loomNo} className="hover:bg-blue-50/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{loom.loomNo}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{loom.fabric}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{loom.fabric?.fabricName || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                     <div className="flex items-center">
-                      <span className="mr-2 font-semibold">{loom.production}m / {loom.target}m</span>
+                      <span className="mr-2 font-semibold">{loom.production?.actualProduction || 0}m / {loom.production?.targetMeters || 0}m</span>
                       <div className="w-24 bg-gray-200 rounded-full h-2.5">
                         <div
                           className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-                          style={{ width: `${(loom.production / loom.target) * 100}%` }}
+                          style={{ width: `${loom.production?.targetMeters ? ((loom.production.actualProduction || 0) / loom.production.targetMeters) * 100 : 0}%` }}
                         ></div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                      loom.efficiency >= 90 ? 'bg-green-100 text-green-800 border border-green-200' :
-                      loom.efficiency >= 75 ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                      (loom.production?.efficiency || 0) >= 90 ? 'bg-green-100 text-green-800 border border-green-200' :
+                      (loom.production?.efficiency || 0) >= 75 ? 'bg-amber-100 text-amber-800 border border-amber-200' :
                       'bg-red-100 text-red-800 border border-red-200'
                     }`}>
-                      {loom.efficiency}%
+                      {(loom.production?.efficiency || 0).toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{loom.weaver}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{loom.weaver?.name || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(loom.status)}</td>
                 </tr>
               ))}
@@ -151,10 +169,10 @@ export default function TextileProduction() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Today's Batches" value="8" unit="batches" color="teal" icon={BeakerIcon} trend="up" change="+12.5%" />
-        <StatCard title="In Progress" value="2" unit="batches" color="blue" icon={ClockIcon} trend="up" change="+5.2%" />
-        <StatCard title="Approved" value="5" unit="batches" color="green" icon={CheckCircleIcon} trend="up" change="+8.3%" />
-        <StatCard title="Redip" value="1" unit="batch" color="red" icon={XCircleIcon} trend="up" change="+1.2%" />
+        <StatCard title="Total Batches" value={dyeingStats.total} unit="batches" color="teal" icon={BeakerIcon} />
+        <StatCard title="In Progress" value={dyeingStats.inProgress} unit="batches" color="blue" icon={ClockIcon} />
+        <StatCard title="Approved" value={dyeingStats.approved} unit="batches" color="green" icon={CheckCircleIcon} />
+        <StatCard title="Redip" value={dyeingStats.redip} unit="batch" color="red" icon={XCircleIcon} />
       </div>
 
       {/* Dyeing Batches */}
@@ -177,30 +195,30 @@ export default function TextileProduction() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {dyeingData.map((batch) => (
-                <tr key={batch.batchNo} className="hover:bg-teal-50/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{batch.batchNo}</td>
+                <tr key={batch._id || batch.dyeingNumber} className="hover:bg-teal-50/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{batch.dyeingNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="h-6 w-6 rounded-full border-2 border-gray-300 mr-2 shadow-sm" style={{backgroundColor: getColorPreview(batch.color)}}></div>
-                      <span className="text-sm text-gray-700 font-medium">{batch.color}</span>
+                      <div className="h-6 w-6 rounded-full border-2 border-gray-300 mr-2 shadow-sm" style={{backgroundColor: getColorPreview(batch.color?.colorName)}}></div>
+                      <span className="text-sm text-gray-700 font-medium">{batch.color?.colorName || batch.color?.colorCode || '-'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{batch.fabric}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">{batch.quantity}m</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{batch.material?.materialName || batch.materialType || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">{batch.material?.quantity || 0}{batch.material?.unit === 'meters' ? 'm' : batch.material?.unit || ''}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {batch.deltaE !== null ? (
+                    {batch.shadeMatching?.deltaE !== null && batch.shadeMatching?.deltaE !== undefined ? (
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                        batch.deltaE < 1.0 ? 'bg-green-100 text-green-800 border border-green-200' :
-                        batch.deltaE < 1.5 ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                        batch.shadeMatching.deltaE < 1.0 ? 'bg-green-100 text-green-800 border border-green-200' :
+                        batch.shadeMatching.deltaE < 1.5 ? 'bg-amber-100 text-amber-800 border border-amber-200' :
                         'bg-red-100 text-red-800 border border-red-200'
                       }`}>
-                        ΔE: {batch.deltaE}
+                        ΔE: {batch.shadeMatching.deltaE}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400 font-medium">Pending</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{batch.operator}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{batch.assignedTo?.name || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(batch.status)}</td>
                 </tr>
               ))}
@@ -216,42 +234,42 @@ export default function TextileProduction() {
       {/* Shade Matching Requests */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {shadeMatching.map((shade) => (
-          <Card key={shade.matchNo} variant="elevated" className="overflow-hidden">
+          <Card key={shade._id || shade.matchingNumber} variant="elevated" className="overflow-hidden">
             <div className="bg-blue-800 px-6 py-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-white font-bold text-lg">{shade.matchNo}</h4>
+                <h4 className="text-white font-bold text-lg">{shade.matchingNumber}</h4>
                 {getPriorityBadge(shade.priority)}
               </div>
             </div>
             <div className="p-6 space-y-4">
               <div className="border-b border-gray-200 pb-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</p>
-                <p className="font-bold text-gray-900 mt-1">{shade.customer}</p>
+                <p className="font-bold text-gray-900 mt-1">{shade.customer?.customerName || '-'}</p>
               </div>
               <div className="border-b border-gray-200 pb-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Target Shade</p>
-                <p className="font-bold text-gray-900 mt-1">{shade.shade}</p>
+                <p className="font-bold text-gray-900 mt-1">{shade.standardShade?.shadeDescription || shade.standardShade?.pantoneCode || '-'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                   <p className="text-xs font-semibold text-blue-700 uppercase">Attempts</p>
-                  <p className="font-bold text-blue-900 text-lg mt-1">{shade.attempts}</p>
+                  <p className="font-bold text-blue-900 text-lg mt-1">{shade.attempts || 0}</p>
                 </div>
                 <div className={`rounded-lg p-3 ${
-                  shade.deltaE < 1.0 ? 'bg-green-50 border border-green-200' :
-                  shade.deltaE < 1.5 ? 'bg-amber-50 border border-amber-200' :
+                  (shade.averageDeltaE || 0) < 1.0 ? 'bg-green-50 border border-green-200' :
+                  (shade.averageDeltaE || 0) < 1.5 ? 'bg-amber-50 border border-amber-200' :
                   'bg-red-50 border border-red-200'
                 }`}>
                   <p className={`text-xs font-semibold uppercase ${
-                    shade.deltaE < 1.0 ? 'text-green-700' :
-                    shade.deltaE < 1.5 ? 'text-amber-700' :
+                    (shade.averageDeltaE || 0) < 1.0 ? 'text-green-700' :
+                    (shade.averageDeltaE || 0) < 1.5 ? 'text-amber-700' :
                     'text-red-700'
                   }`}>Delta E</p>
                   <p className={`font-bold text-lg mt-1 ${
-                    shade.deltaE < 1.0 ? 'text-green-900' :
-                    shade.deltaE < 1.5 ? 'text-amber-900' :
+                    (shade.averageDeltaE || 0) < 1.0 ? 'text-green-900' :
+                    (shade.averageDeltaE || 0) < 1.5 ? 'text-amber-900' :
                     'text-red-900'
-                  }`}>{shade.deltaE.toFixed(2)}</p>
+                  }`}>{(shade.averageDeltaE || 0).toFixed(2)}</p>
                 </div>
               </div>
               <div className="pt-3">
@@ -307,9 +325,17 @@ export default function TextileProduction() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'looms' && renderLoomProduction()}
-        {activeTab === 'dyeing' && renderDyeingProcess()}
-        {activeTab === 'shadeMatching' && renderShadeMatching()}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'looms' && renderLoomProduction()}
+            {activeTab === 'dyeing' && renderDyeingProcess()}
+            {activeTab === 'shadeMatching' && renderShadeMatching()}
+          </>
+        )}
       </div>
     );
   }

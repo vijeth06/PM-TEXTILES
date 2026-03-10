@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
+const fileUpload = require('express-fileupload');
 const http = require('http');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -16,6 +17,16 @@ const { initializeSocket } = require('./services/socketService');
 
 // Import scheduler service
 const startScheduler = () => require('./services/schedulerService');
+
+// Import Redis caching service
+const { initRedis, cacheService } = require('./services/redisService');
+
+// Import email service
+const { initEmailService } = require('./services/emailService');
+
+// Import Swagger documentation
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./utils/swaggerDocs');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -55,8 +66,13 @@ const loomProductionRoutes = require('./routes/loomProduction');
 const dyeingRoutes = require('./routes/dyeing');
 const colorLabRoutes = require('./routes/colorLab');
 
+// Admin Routes (new features)
+const backupRoutes = require('./routes/backups');
+const cacheRoutes = require('./routes/cache');
+
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
+const auditLogger = require('./middleware/auditLogger');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const logger = require('./utils/logger');
 
@@ -73,6 +89,15 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(fileUpload({
+  createParentPath: true,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  abortOnLimit: true,
+  useTempFiles: false
+}));
+
+// Centralized audit logging for successful mutating API calls.
+app.use(auditLogger);
 
 // Apply rate limiting to all API routes
 app.use('/api/', apiLimiter);
@@ -124,6 +149,16 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/textile/loom-production', loomProductionRoutes);
 app.use('/api/textile/dyeing', dyeingRoutes);
 app.use('/api/textile/color-lab', colorLabRoutes);
+
+// Admin Routes (System Management)
+app.use('/api/admin/backups', backupRoutes);
+app.use('/api/admin/cache', cacheRoutes);
+
+// API Documentation (Swagger)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'PM Textiles ERP API Documentation'
+}));
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -180,9 +215,18 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   await connectDB();
 
+  // Initialize Redis caching (optional - app works without it)
+  const redis = initRedis();
+  
+  // Initialize Email service (optional - app works without it)
+  initEmailService();
+
   // Initialize WebSocket
   io = initializeSocket(server);
   app.set('io', io);
+
+  // Make cache service available globally
+  app.set('cache', cacheService);
 
   // Start scheduler jobs after DB is available
   startScheduler();
@@ -203,13 +247,15 @@ const startServer = async () => {
   ║   PM Textiles ERP - Backend Server v2.0                   ║
   ║   Production, Inventory & Order Management System          ║
   ╠════════════════════════════════════════════════════════════╣
-  ║   Server running on: http://localhost:${PORT}                  ║
-  ║   Environment: ${process.env.NODE_ENV || 'development'}                              ║
-  ║   Database: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}                                    ║
-  ║   WebSocket: Enabled ✅                                    ║
-  ║   Email Service: Configured ✅                             ║
-  ║   File Upload: Enabled ✅                                  ║
-  ║   Real-time Features: Active ✅                            ║
+  ║   Server:       http://localhost:${PORT}                       ║
+  ║   API Docs:     http://localhost:${PORT}/api-docs              ║
+  ║   Environment:  ${process.env.NODE_ENV || 'development'}                              ║
+  ║   Database:     ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}                            ║
+  ║   WebSocket:    Enabled ✅                                    ║
+  ║   Email:        ${process.env.EMAIL_USER ? 'Configured ✅' : 'Not configured ⚠️'}                         ║
+  ║   Redis Cache:  ${redis ? 'Enabled ✅' : 'Disabled (optional) ⚠️'}                      ║
+  ║   File Upload:  Enabled ✅                                    ║
+  ║   Security:     Helmet, CORS, Rate Limiting ✅               ║
   ╚════════════════════════════════════════════════════════════╝
   `);
   });

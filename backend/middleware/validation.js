@@ -27,12 +27,30 @@ exports.loginValidation = [
 ];
 
 exports.registerValidation = [
-  body('username').trim().isLength({ min: 3, max: 50 }).withMessage('Username must be 3-50 characters'),
-  body('email').isEmail().normalizeEmail().withMessage('Invalid email address'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('fullName').trim().notEmpty().withMessage('Full name is required'),
-  body('role').isIn(['admin', 'production_manager', 'store_manager', 'sales_executive', 'qa_inspector', 'management'])
-    .withMessage('Invalid role')
+  body('username')
+    .trim()
+    .notEmpty().withMessage('Username is required')
+    .isLength({ min: 3, max: 50 }).withMessage('Username must be 3-50 characters'),
+  body('email')
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+  body('password')
+    .notEmpty().withMessage('Password is required')
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('fullName')
+    .trim()
+    .notEmpty().withMessage('Full name is required'),
+  body('role')
+    .notEmpty().withMessage('Role is required')
+    .isIn(['admin', 'production_manager', 'store_manager', 'sales_executive', 'qa_inspector', 'management'])
+    .withMessage('Invalid role'),
+  body('permissions')
+    .optional()
+    .isArray().withMessage('Permissions must be an array'),
+  body('isActive')
+    .optional()
+    .isBoolean().withMessage('isActive must be a boolean')
 ];
 
 exports.idValidation = [
