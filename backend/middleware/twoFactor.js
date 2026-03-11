@@ -2,9 +2,68 @@
  * Two-Factor Authentication (2FA) Middleware and Utilities
  */
 
-const { generate2FASecret, verifyTOTP, generateTOTP } = require('../utils/encryption');
+const { encrypt, decrypt, generate2FASecret, verifyTOTP, sha256 } = require('../utils/encryption');
 const User = require('../models/User');
 const QRCode = require('qrcode');
+
+const getUserWithTwoFactor = async (userId) => User.findById(userId).select('+twoFactorSecret +backupCodes');
+
+const normalizeChallengeValue = (value) => String(value || '').trim().replace(/\s+/g, '').toUpperCase();
+
+const verifyBackupCode = async (user, challenge) => {
+  const hashedCode = sha256(challenge);
+  const backupCode = (user.backupCodes || []).find((entry) => !entry.used && entry.code === hashedCode);
+
+  if (!backupCode) {
+    return false;
+  }
+
+  backupCode.used = true;
+  await user.save();
+  return true;
+};
+
+const verifyTwoFactorChallenge = async (userOrId, token) => {
+  const user = typeof userOrId === 'string'
+    ? await getUserWithTwoFactor(userOrId)
+    : userOrId;
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (!user.twoFactorEnabled) {
+    return { success: true };
+  }
+
+  const challenge = normalizeChallengeValue(token);
+  if (!challenge) {
+    return {
+      success: false,
+      message: '2FA token required',
+      require2FA: true
+    };
+  }
+
+  const decryptedSecret = user.twoFactorSecret ? decrypt(user.twoFactorSecret) : null;
+  if (decryptedSecret && verifyTOTP(challenge, decryptedSecret)) {
+    return { success: true };
+  }
+
+  const usedBackupCode = await verifyBackupCode(user, challenge);
+  if (usedBackupCode) {
+    return {
+      success: true,
+      message: 'Logged in using backup code'
+    };
+  }
+
+  return {
+    success: false,
+    message: 'Invalid verification code',
+    require2FA: true
+  };
+};
 
 /**
  * Enable 2FA for user
@@ -21,8 +80,7 @@ const enable2FA = async (userId) => {
     // Generate secret
     const secret = generate2FASecret();
 
-    // Save secret to user (hashed or encrypted in production)
-    user.twoFactorSecret = secret;
+    user.twoFactorSecret = encrypt(secret);
     user.twoFactorEnabled = false; // Enable after verification
     await user.save();
 
@@ -51,13 +109,13 @@ const enable2FA = async (userId) => {
  */
 const verify2FA = async (userId, token) => {
   try {
-    const user = await User.findById(userId);
+    const user = await getUserWithTwoFactor(userId);
     if (!user || !user.twoFactorSecret) {
       throw new Error('2FA not set up for this user');
     }
 
-    // Verify token
-    const isValid = verifyTOTP(token, user.twoFactorSecret);
+    const secret = decrypt(user.twoFactorSecret);
+    const isValid = verifyTOTP(token, secret);
 
     if (isValid) {
       // Enable 2FA
@@ -88,25 +146,22 @@ const verify2FA = async (userId, token) => {
  */
 const disable2FA = async (userId, token) => {
   try {
-    const user = await User.findById(userId);
+    const user = await getUserWithTwoFactor(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
-    // Verify token before disabling
     if (user.twoFactorEnabled) {
-      const isValid = verifyTOTP(token, user.twoFactorSecret);
-      if (!isValid) {
-        return {
-          success: false,
-          message: 'Invalid verification code'
-        };
+      const verification = await verifyTwoFactorChallenge(user, token);
+      if (!verification.success) {
+        return verification;
       }
     }
 
     // Disable 2FA
     user.twoFactorEnabled = false;
     user.twoFactorSecret = undefined;
+    user.backupCodes = [];
     await user.save();
 
     return {
@@ -134,11 +189,10 @@ const generateBackupCodes = async (userId) => {
   }
 
   // Save hashed backup codes to user
-  const user = await User.findById(userId);
+  const user = await getUserWithTwoFactor(userId);
   if (user) {
-    // In production, hash these codes before storing
     user.backupCodes = codes.map(code => ({
-      code: crypto.createHash('sha256').update(code).digest('hex'),
+      code: sha256(code),
       used: false
     }));
     await user.save();
@@ -153,30 +207,11 @@ const generateBackupCodes = async (userId) => {
  */
 const require2FA = async (req, res, next) => {
   try {
-    const token = req.headers['x-2fa-token'] || req.body.twoFactorToken;
+    const token = req.headers['x-2fa-token'] || req.body?.twoFactorToken;
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: '2FA token required',
-        require2FA: true
-      });
-    }
-
-    const user = await User.findById(req.user.id);
-    
-    if (!user || !user.twoFactorEnabled) {
-      return next(); // 2FA not enabled, continue
-    }
-
-    // Verify token
-    const isValid = verifyTOTP(token, user.twoFactorSecret);
-
-    if (!isValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid 2FA token'
-      });
+    const verification = await verifyTwoFactorChallenge(req.user.id, token);
+    if (!verification.success) {
+      return res.status(401).json(verification);
     }
 
     next();
@@ -209,5 +244,6 @@ module.exports = {
   disable2FA,
   generateBackupCodes,
   require2FA,
-  check2FAStatus
+  check2FAStatus,
+  verifyTwoFactorChallenge
 };

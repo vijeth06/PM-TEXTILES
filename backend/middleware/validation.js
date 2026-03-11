@@ -23,7 +23,11 @@ const { body, param, query } = require('express-validator');
 
 exports.loginValidation = [
   body('username').trim().notEmpty().withMessage('Username is required'),
-  body('password').notEmpty().withMessage('Password is required')
+  body('password').notEmpty().withMessage('Password is required'),
+  body('twoFactorToken')
+    .optional()
+    .trim()
+    .isLength({ min: 6, max: 64 }).withMessage('Invalid 2FA token format')
 ];
 
 exports.registerValidation = [

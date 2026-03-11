@@ -65,7 +65,7 @@ router.post('/2fa/verify', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Token required' });
     }
     const result = await verify2FA(req.user.id, token);
-    res.json(result);
+    res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -78,7 +78,7 @@ router.post('/2fa/disable', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Token required for verification' });
     }
     const result = await disable2FA(req.user.id, token);
-    res.json(result);
+    res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

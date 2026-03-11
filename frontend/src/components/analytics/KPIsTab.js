@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { kpisAPI } from '../../services/analyticsAPI';
+import toast from 'react-hot-toast';
 import { 
   ChartBarIcon,
   ArrowUpIcon,
@@ -71,7 +72,7 @@ export default function KPIsTab() {
       };
       if (kpiType === 'oee') {
         if (!kpiForm.machineId) {
-          window.alert('Machine ID is required for OEE calculation');
+          toast.error('Machine ID is required for OEE calculation');
           return;
         }
         payload.machineId = kpiForm.machineId;
@@ -90,12 +91,12 @@ export default function KPIsTab() {
         default:
           return;
       }
-      window.alert(`${kpiType.toUpperCase()} calculated successfully!`);
+      toast.success(`${kpiType.toUpperCase()} calculated successfully!`);
       setShowCalculateModal(false);
       fetchKPIDashboard();
     } catch (error) {
       console.error(`Error calculating ${kpiType}:`, error);
-      window.alert(`Failed to calculate ${kpiType}`);
+      toast.error(`Failed to calculate ${kpiType}`);
     }
   };
 

@@ -3,6 +3,15 @@ import { productionAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Modal, Input, Select, Textarea, Button, Badge } from '../../components/common';
 
+const parseQuantity = (value) => {
+  if (value === '' || value === null || value === undefined) {
+    return 0;
+  }
+
+  const parsedValue = Number.parseFloat(value);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
 const ExecutionModal = ({ stage, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     outputQuantity: stage?.outputQuantity || 0,
@@ -66,6 +75,11 @@ const ExecutionModal = ({ stage, onClose, onSuccess }) => {
 
     if (formData.rejectedQuantity < 0) {
       toast.error('Rejected quantity cannot be negative');
+      return;
+    }
+
+    if (formData.wastageQuantity < 0) {
+      toast.error('Wastage quantity cannot be negative');
       return;
     }
 
@@ -139,7 +153,7 @@ const ExecutionModal = ({ stage, onClose, onSuccess }) => {
             min="0"
             step="0.01"
             value={formData.outputQuantity}
-            onChange={(e) => setFormData({ ...formData, outputQuantity: parseFloat(e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, outputQuantity: parseQuantity(e.target.value) })}
           />
           <Input
             label="Rejected Quantity"
@@ -147,7 +161,7 @@ const ExecutionModal = ({ stage, onClose, onSuccess }) => {
             min="0"
             step="0.01"
             value={formData.rejectedQuantity}
-            onChange={(e) => setFormData({ ...formData, rejectedQuantity: parseFloat(e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, rejectedQuantity: parseQuantity(e.target.value) })}
           />
           <Input
             label="Wastage Quantity"
@@ -155,7 +169,7 @@ const ExecutionModal = ({ stage, onClose, onSuccess }) => {
             min="0"
             step="0.01"
             value={formData.wastageQuantity}
-            onChange={(e) => setFormData({ ...formData, wastageQuantity: parseFloat(e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, wastageQuantity: parseQuantity(e.target.value) })}
           />
         </div>
 

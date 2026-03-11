@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { leadsAPI } from '../../services/analyticsAPI';
+import toast from 'react-hot-toast';
 import { PlusIcon, PhoneIcon, EnvelopeIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export default function LeadsListTab() {
@@ -46,6 +47,7 @@ export default function LeadsListTab() {
       setLeads(response.data.data || []);
     } catch (error) {
       console.error('Error fetching leads:', error);
+      toast.error('Failed to fetch leads');
     } finally {
       setLoading(false);
     }
@@ -78,11 +80,11 @@ export default function LeadsListTab() {
     if (!window.confirm('Convert this lead to customer?')) return;
     try {
       await leadsAPI.convertToCustomer(leadId);
-      window.alert('Lead converted to customer successfully!');
+      toast.success('Lead converted to customer successfully!');
       fetchLeads();
     } catch (error) {
       console.error('Error converting lead:', error);
-      window.alert('Failed to convert lead');
+      toast.error('Failed to convert lead');
     }
   };
 
@@ -102,7 +104,7 @@ export default function LeadsListTab() {
         item.itemCode && item.description && item.quantity && item.rate
       );
       if (validItems.length === 0) {
-        window.alert('Please add at least one valid item');
+        toast.error('Please add at least one valid item');
         return;
       }
       await leadsAPI.createQuotationFromLead(selectedLead._id, {
@@ -115,13 +117,13 @@ export default function LeadsListTab() {
         validityDays: Number(quotationForm.validityDays),
         terms: quotationForm.terms
       });
-      window.alert('Quotation created successfully!');
+      toast.success('Quotation created successfully!');
       setShowQuotationModal(false);
       setSelectedLead(null);
       fetchLeads();
     } catch (error) {
       console.error('Error creating quotation:', error);
-      window.alert('Failed to create quotation');
+      toast.error('Failed to create quotation');
     }
   };
 
@@ -133,7 +135,7 @@ export default function LeadsListTab() {
         estimatedValue: formData.estimatedValue ? Number(formData.estimatedValue) : undefined
       };
       await leadsAPI.createLead(payload);
-      window.alert('Lead created successfully!');
+      toast.success('Lead created successfully!');
       setShowModal(false);
       setFormData({
         companyName: '',
@@ -150,7 +152,7 @@ export default function LeadsListTab() {
       fetchLeads();
     } catch (error) {
       console.error('Error creating lead:', error);
-      window.alert('Failed to create lead');
+      toast.error('Failed to create lead');
     }
   };
 

@@ -14,6 +14,12 @@ import DowntimeModal from './modals/DowntimeModal';
 
 const ProductionExecution = () => {
   const [stages, setStages] = useState([]);
+  const [summaryCounts, setSummaryCounts] = useState({
+    pending: 0,
+    in_progress: 0,
+    completed: 0,
+    on_hold: 0
+  });
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(null); // 'execution', 'quality', 'downtime', or null
   const [selectedStage, setSelectedStage] = useState(null);
@@ -51,7 +57,18 @@ const ProductionExecution = () => {
         }
       }
       
-      setStages(allStages);
+      setSummaryCounts({
+        pending: allStages.filter((stage) => stage.status === 'pending').length,
+        in_progress: allStages.filter((stage) => stage.status === 'in_progress').length,
+        completed: allStages.filter((stage) => stage.status === 'completed').length,
+        on_hold: allStages.filter((stage) => stage.status === 'on_hold').length
+      });
+
+      const actionableStages = allStages.filter(
+        (stage) => ['pending', 'in_progress', 'on_hold'].includes(stage.status)
+      );
+
+      setStages(actionableStages);
     } catch (error) {
       console.error('Error fetching production stages:', error);
       toast.error('Failed to fetch production stages');
@@ -86,6 +103,17 @@ const ProductionExecution = () => {
     return <Badge variant={variants[status]}>{status.replace(/_/g, ' ').toUpperCase()}</Badge>;
   };
 
+  const getProgressPercentage = (stage) => {
+    if (stage.status === 'completed') return 100;
+    if (stage.status !== 'in_progress') return 0;
+
+    const inputQty = Number(stage.inputQuantity || 0);
+    const outputQty = Number(stage.outputQuantity || 0);
+    if (inputQty <= 0) return 50;
+
+    return Math.max(0, Math.min(100, Math.round((outputQty / inputQty) * 100)));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -106,7 +134,7 @@ const ProductionExecution = () => {
               <div>
                 <p className="text-sm text-gray-600">Pending</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stages.filter(s => s.status === 'pending').length}
+                  {summaryCounts.pending}
                 </p>
               </div>
               <div className="bg-gray-100 p-3 rounded-full">
@@ -122,7 +150,7 @@ const ProductionExecution = () => {
               <div>
                 <p className="text-sm text-gray-600">In Progress</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {stages.filter(s => s.status === 'in_progress').length}
+                  {summaryCounts.in_progress}
                 </p>
               </div>
               <div className="bg-yellow-100 p-3 rounded-full">
@@ -138,7 +166,7 @@ const ProductionExecution = () => {
               <div>
                 <p className="text-sm text-gray-600">Completed</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {stages.filter(s => s.status === 'completed').length}
+                  {summaryCounts.completed}
                 </p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
@@ -154,7 +182,7 @@ const ProductionExecution = () => {
               <div>
                 <p className="text-sm text-gray-600">On Hold</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {stages.filter(s => s.status === 'on_hold').length}
+                  {summaryCounts.on_hold}
                 </p>
               </div>
               <div className="bg-red-100 p-3 rounded-full">
@@ -177,8 +205,8 @@ const ProductionExecution = () => {
             </div>
           ) : stages.length === 0 ? (
             <EmptyState 
-              title="No pending production stages" 
-              description="All planned stages have been completed"
+              title="No active production stages" 
+              description="There are no pending, in-progress, or on-hold stages right now"
             />
           ) : (
             <Table>
@@ -202,7 +230,7 @@ const ProductionExecution = () => {
                     <Td>
                       <div>
                         <div className="font-medium capitalize">
-                          {stage.stageName.replace(/_/g, ' ')}
+                          {(stage.stageName || '').replace(/_/g, ' ') || 'Unknown Stage'}
                         </div>
                         <div className="text-xs text-gray-500">
                           Seq: {stage.stageSequence}
@@ -238,10 +266,7 @@ const ProductionExecution = () => {
                             stage.status === 'in_progress' ? 'bg-yellow-600' :
                             'bg-gray-400'
                           }`}
-                          style={{ 
-                            width: stage.status === 'completed' ? '100%' : 
-                                   stage.status === 'in_progress' ? '50%' : '0%' 
-                          }}
+                          style={{ width: `${getProgressPercentage(stage)}%` }}
                         ></div>
                       </div>
                     </Td>

@@ -238,42 +238,71 @@ exports.updateProductionStage = async (req, res, next) => {
     }
 
     const updatePayload = { ...req.body };
+    const appendQualityCheck = updatePayload.appendQualityCheck;
+    const appendDowntime = updatePayload.appendDowntime;
 
-    // Server controls completion attribution and timeline fields.
+    delete updatePayload.appendQualityCheck;
+    delete updatePayload.appendDowntime;
     delete updatePayload.completedBy;
-    if (updatePayload.status === 'in_progress' && !updatePayload.actualStartTime) {
-      updatePayload.actualStartTime = new Date();
-    }
-    if (updatePayload.status === 'completed') {
-      if (!updatePayload.actualEndTime) {
-        updatePayload.actualEndTime = new Date();
-      }
-      updatePayload.completedBy = req.user._id;
-    } else {
-      updatePayload.completedBy = null;
+
+    Object.entries(updatePayload).forEach(([key, value]) => {
+      stage.set(key, value);
+    });
+
+    if (appendQualityCheck) {
+      stage.qualityChecks.push(appendQualityCheck);
     }
 
-    stage = await ProductionStage.findByIdAndUpdate(req.params.id, updatePayload, {
-      new: true,
-      runValidators: true
-    });
+    if (appendDowntime) {
+      stage.downtimeLog.push(appendDowntime);
+    }
+
+    if (stage.status === 'in_progress' && !stage.actualStartTime) {
+      stage.actualStartTime = new Date();
+    }
+
+    if (stage.status === 'completed') {
+      if (!stage.actualEndTime) {
+        stage.actualEndTime = new Date();
+      }
+      stage.completedBy = req.user._id;
+    } else {
+      stage.completedBy = undefined;
+      if (stage.status !== 'completed') {
+        stage.actualEndTime = null;
+      }
+    }
+
+    await stage.save();
 
     // Update plan completion percentage
     const allStages = await ProductionStage.find({ planId: stage.planId });
     const completedStages = allStages.filter(s => s.status === 'completed').length;
-    const completionPercent = (completedStages / allStages.length) * 100;
+    const completionPercent = allStages.length > 0 ? (completedStages / allStages.length) * 100 : 0;
+    const hasStarted = allStages.some((item) => item.status === 'in_progress' || item.status === 'completed');
 
-    await ProductionPlan.findByIdAndUpdate(stage.planId, {
-      completionPercent,
-      ...(completionPercent === 100 && { status: 'completed', actualEndDate: new Date() })
-    });
+    const plan = await ProductionPlan.findById(stage.planId);
+    if (plan) {
+      plan.completionPercent = completionPercent;
+
+      if (completionPercent === 100) {
+        plan.status = 'completed';
+        plan.actualEndDate = new Date();
+      } else if (hasStarted) {
+        plan.status = 'in_progress';
+        plan.actualStartDate = plan.actualStartDate || stage.actualStartTime || new Date();
+        plan.actualEndDate = undefined;
+      }
+
+      await plan.save();
+    }
 
     // Emit real-time events
     broadcastToAll('production_stage_updated', {
       planNo: stage.planNo,
       stageName: stage.stageName,
       status: stage.status,
-      completionPercent: stage.completionPercent,
+      completionPercent,
       timestamp: new Date()
     });
 

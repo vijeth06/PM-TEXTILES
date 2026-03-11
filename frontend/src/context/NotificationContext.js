@@ -91,34 +91,47 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     fetchNotifications();
 
-    // Setup real-time notification listener
+    // Named handlers so they can be removed on cleanup
+    const handleNewNotification = (data) => {
+      setNotifications(prev => [data, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      toast(`New notification: ${data.title}`);
+    };
+
+    const handleNotificationUpdated = (data) => {
+      setNotifications(prev =>
+        prev.map(notif => notif._id === data._id ? data : notif)
+      );
+    };
+
+    const handleNotificationDeleted = (data) => {
+      setNotifications(prev => prev.filter(notif => notif._id !== data._id));
+      if (!data.isRead) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    };
+
+    const registerSocketListeners = () => {
+      socketService.on('new_notification', handleNewNotification);
+      socketService.on('notification_updated', handleNotificationUpdated);
+      socketService.on('notification_deleted', handleNotificationDeleted);
+    };
+
+    // Register immediately if already connected; otherwise wait for the
+    // connect event (socket.io fires 'connect' once the handshake completes)
     if (socketService.isConnected()) {
-      socketService.on('new_notification', (data) => {
-        setNotifications(prev => [data, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        toast.info(`New notification: ${data.title}`);
-      });
-
-      socketService.on('notification_updated', (data) => {
-        setNotifications(prev =>
-          prev.map(notif => notif._id === data._id ? data : notif)
-        );
-      });
-
-      socketService.on('notification_deleted', (data) => {
-        setNotifications(prev => prev.filter(notif => notif._id !== data._id));
-        if (!data.isRead) {
-          setUnreadCount(prev => Math.max(0, prev - 1));
-        }
-      });
+      registerSocketListeners();
+    } else if (socketService.socket) {
+      socketService.socket.once('connect', registerSocketListeners);
     }
 
     // Cleanup listeners on unmount
     return () => {
-      if (socketService.isConnected()) {
-        socketService.off('new_notification');
-        socketService.off('notification_updated');
-        socketService.off('notification_deleted');
+      socketService.off('new_notification', handleNewNotification);
+      socketService.off('notification_updated', handleNotificationUpdated);
+      socketService.off('notification_deleted', handleNotificationDeleted);
+      if (socketService.socket) {
+        socketService.socket.off('connect', registerSocketListeners);
       }
     };
   }, []);

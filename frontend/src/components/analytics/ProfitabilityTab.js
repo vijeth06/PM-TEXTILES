@@ -12,20 +12,20 @@ export default function ProfitabilityTab() {
   });
 
   useEffect(() => {
+    const fetchProfitability = async () => {
+      try {
+        setLoading(true);
+        const response = await costAnalysisAPI.getProfitabilityReport(dateRange);
+        setProfitability(response.data.data);
+      } catch (error) {
+        console.error('Error fetching profitability:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchProfitability();
   }, [dateRange]);
-
-  const fetchProfitability = async () => {
-    try {
-      setLoading(true);
-      const response = await costAnalysisAPI.getProfitabilityReport(dateRange);
-      setProfitability(response.data.data);
-    } catch (error) {
-      console.error('Error fetching profitability:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-IN', {

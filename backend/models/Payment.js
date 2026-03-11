@@ -41,9 +41,9 @@ const paymentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate payment number
-paymentSchema.pre('save', async function(next) {
-  if (!this.paymentNumber) {
+// Generate payment number before validation runs
+paymentSchema.pre('validate', async function(next) {
+  if (this.isNew && !this.paymentNumber) {
     const count = await this.constructor.countDocuments();
     this.paymentNumber = `PAY-${Date.now()}-${String(count + 1).padStart(4, '0')}`;
   }

@@ -14,20 +14,20 @@ export default function CostAnalysisTab() {
   });
 
   useEffect(() => {
+    const fetchCostBreakdown = async () => {
+      try {
+        setLoading(true);
+        const response = await costAnalysisAPI.getCostBreakdown(dateRange);
+        setCostBreakdown(response.data.data);
+      } catch (error) {
+        console.error('Error fetching cost breakdown:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCostBreakdown();
   }, [dateRange]);
-
-  const fetchCostBreakdown = async () => {
-    try {
-      setLoading(true);
-      const response = await costAnalysisAPI.getCostBreakdown(dateRange);
-      setCostBreakdown(response.data.data);
-    } catch (error) {
-      console.error('Error fetching cost breakdown:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-IN', {

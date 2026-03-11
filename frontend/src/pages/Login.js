@@ -13,10 +13,12 @@ import {
 const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
+    twoFactorToken: ''
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -30,6 +32,10 @@ const Login = () => {
     
     if (!formData.password) {
       newErrors.password = 'Password is required';
+    }
+
+    if (requiresTwoFactor && !formData.twoFactorToken.trim()) {
+      newErrors.twoFactorToken = '2FA code or backup code is required';
     }
     
     setErrors(newErrors);
@@ -60,15 +66,19 @@ const Login = () => {
     
     setLoading(true);
 
-    const result = await login(formData.username, formData.password);
+    const result = await login(formData.username, formData.password, formData.twoFactorToken);
 
     if (result.success) {
+      setRequiresTwoFactor(false);
       toast.success('Welcome back!', {
         icon: '👋',
         duration: 3000,
       });
       navigate('/dashboard');
     } else {
+      if (result.requireTwoFactor) {
+        setRequiresTwoFactor(true);
+      }
       toast.error(result.message || 'Invalid username or password');
     }
 
@@ -178,6 +188,32 @@ const Login = () => {
                 </p>
               )}
             </div>
+
+            {requiresTwoFactor && (
+              <div>
+                <label htmlFor="twoFactorToken" className="block text-sm font-semibold text-gray-700 mb-2.5">
+                  2FA Code or Backup Code
+                </label>
+                <input
+                  type="text"
+                  id="twoFactorToken"
+                  name="twoFactorToken"
+                  value={formData.twoFactorToken}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 font-medium ${
+                    errors.twoFactorToken
+                      ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-200 bg-gray-50 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                  placeholder="Enter 6-digit code or backup code"
+                  autoComplete="one-time-code"
+                />
+                {errors.twoFactorToken && (
+                  <p className="mt-2 text-sm text-red-600 font-semibold">{errors.twoFactorToken}</p>
+                )}
+                <p className="mt-2 text-xs text-gray-500">Your account requires two-factor authentication to finish signing in.</p>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button

@@ -32,12 +32,8 @@ const QualityCheckModal = ({ stage, onClose, onSuccess }) => {
         ...formData
       };
 
-      // Get current quality checks array and add new one
-      const currentStage = stage;
-      const updatedChecks = [...(currentStage.qualityChecks || []), qualityCheck];
-
       await productionAPI.updateStage(stage._id, {
-        qualityChecks: updatedChecks
+        appendQualityCheck: qualityCheck
       });
 
       toast.success('Quality check recorded successfully');

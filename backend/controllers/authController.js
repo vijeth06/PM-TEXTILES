@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { sendEmail, emailTemplates } = require('../services/emailService');
 const { createAuditLog } = require('./auditController');
+const { verifyTwoFactorChallenge } = require('../middleware/twoFactor');
 
 // Generate JWT Token
 const generateToken = (id, role) => {
@@ -99,12 +100,12 @@ exports.register = async (req, res, next) => {
 // @access  Public
 exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, twoFactorToken } = req.body;
 
     // Check for user (allow login with username or email)
-    const user = await User.findOne({ 
-      $or: [{ username }, { email: username }] 
-    });
+    const user = await User.findOne({
+      $or: [{ username }, { email: username }]
+    }).select('+twoFactorSecret +backupCodes');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -129,7 +130,17 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Update last login
+    if (user.twoFactorEnabled) {
+      const verification = await verifyTwoFactorChallenge(user, twoFactorToken);
+      if (!verification.success) {
+        return res.status(401).json({
+          success: false,
+          message: verification.message,
+          require2FA: true
+        });
+      }
+    }
+
     user.lastLogin = new Date();
     await user.save();
 
@@ -150,7 +161,8 @@ exports.login = async (req, res, next) => {
           fullName: user.fullName,
           role: user.role,
           permissions: user.permissions,
-          lastLogin: user.lastLogin
+          lastLogin: user.lastLogin,
+          twoFactorEnabled: user.twoFactorEnabled
         }
       }
     });

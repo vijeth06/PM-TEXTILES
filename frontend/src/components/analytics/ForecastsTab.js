@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { forecastsAPI } from '../../services/analyticsAPI';
+import toast from 'react-hot-toast';
 import { 
   ArrowTrendingUpIcon, 
   ArrowTrendingDownIcon,
@@ -56,11 +57,11 @@ export default function ForecastsTab() {
         months: 6,
         includeSeasonality: true
       });
-      window.alert('Demand forecast generated successfully!');
+      toast.success('Demand forecast generated successfully!');
       fetchForecasts();
     } catch (error) {
       console.error('Error generating forecast:', error);
-      window.alert('Failed to generate demand forecast');
+      toast.error('Failed to generate demand forecast');
     }
   };
 

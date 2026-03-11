@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import api, { authAPI } from '../services/api';
 import socketService from '../services/socketService';
 
 const AuthContext = createContext();
@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   // Set axios default headers
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       loadUser();
     } else {
       setLoading(false);
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     try {
-      const response = await axios.get('/api/auth/me');
+      const response = await authAPI.getMe();
       setUser(response.data.data);
     } catch (error) {
       console.error('Failed to load user:', error);
@@ -40,9 +40,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (username, password, twoFactorToken = '') => {
     try {
-      const response = await axios.post('/api/auth/login', { username, password });
+      const response = await authAPI.login({ username, password, twoFactorToken });
       const { token, refreshToken, user } = response.data.data;
       
       localStorage.setItem('token', token);
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
       }
       setToken(token);
       setUser(user);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       // Connect WebSocket
       socketService.connect(token);
@@ -60,6 +60,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
+        requireTwoFactor: Boolean(error.response?.data?.require2FA),
         message: error.response?.data?.message || 'Login failed'
       };
     }
@@ -70,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('refreshToken');
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common['Authorization'];
     
     // Disconnect WebSocket
     socketService.disconnect();

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const { cacheService, invalidateCache } = require('../middleware/cache');
+const { invalidateCache } = require('../middleware/cache');
+const { cacheService } = require('../services/redisService');
 
 // All routes require admin access
 router.use(protect);

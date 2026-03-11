@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
@@ -51,6 +51,7 @@ const navigation = [
   { name: 'Employees', href: '/employees', icon: UserGroupIcon, iconSolid: UserGroupIconSolid, permission: 'manage_users' },
   { name: 'Documents', href: '/documents', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
+  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
   { name: 'Finance', href: '/finance', icon: BanknotesIcon, iconSolid: BanknotesIconSolid, permission: 'view_reports' },
   { name: 'Audit Trail', href: '/audit', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, permission: 'system_admin', adminOnly: true },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, iconSolid: Cog6ToothIconSolid },

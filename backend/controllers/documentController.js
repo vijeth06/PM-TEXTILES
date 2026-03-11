@@ -1,6 +1,79 @@
 const Document = require('../models/Document');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const asyncHandler = require('express-async-handler');
+
+const DOCUMENT_UPLOAD_DIR = path.join(__dirname, '../uploads/documents');
+
+const ensureDocumentUploadDir = () => {
+  if (!fs.existsSync(DOCUMENT_UPLOAD_DIR)) {
+    fs.mkdirSync(DOCUMENT_UPLOAD_DIR, { recursive: true });
+  }
+};
+
+const sanitizeFilename = (filename = 'document') => {
+  const parsed = path.parse(path.basename(filename));
+  const safeName = (parsed.name || 'document').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeExt = (parsed.ext || '').replace(/[^a-zA-Z0-9.]/g, '');
+  return `${safeName}${safeExt}`;
+};
+
+const buildAccessCondition = (user) => {
+  if (!user || ['admin', 'management'].includes(user.role)) {
+    return null;
+  }
+
+  const userId = user.id || user._id;
+
+  return {
+    $or: [
+      { accessLevel: 'public' },
+      { accessLevel: 'internal' },
+      { uploadedBy: userId },
+      {
+        accessLevel: { $in: ['restricted', 'confidential'] },
+        allowedRoles: user.role
+      }
+    ]
+  };
+};
+
+const combineConditions = (...conditions) => {
+  const filtered = conditions.filter((condition) => condition && Object.keys(condition).length > 0);
+  if (filtered.length === 0) return {};
+  if (filtered.length === 1) return filtered[0];
+  return { $and: filtered };
+};
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const userCanAccessDocument = (document, user) => {
+  if (!document || !user) return false;
+  if (['admin', 'management'].includes(user.role)) return true;
+  if (document.accessLevel === 'public' || document.accessLevel === 'internal') return true;
+
+  const uploadedBy = String(document.uploadedBy?._id || document.uploadedBy || '');
+  if (uploadedBy === String(user.id || user._id)) {
+    return true;
+  }
+
+  const allowedRoles = Array.isArray(document.allowedRoles) ? document.allowedRoles : [];
+  return allowedRoles.includes(user.role);
+};
+
+const detectDocumentType = (file) => {
+  const extension = path.extname(file.name || '').toLowerCase();
+  const mimeType = file.mimetype || '';
+
+  if (mimeType.includes('pdf') || extension === '.pdf') return 'pdf';
+  if (mimeType.includes('word') || extension === '.doc') return 'doc';
+  if (extension === '.docx') return 'docx';
+  if (mimeType.includes('excel') || extension === '.xls') return 'xls';
+  if (extension === '.xlsx') return 'xlsx';
+  if (mimeType.startsWith('image/')) return 'image';
+  return 'other';
+};
 
 // @desc    Upload document
 // @route   POST /api/documents
@@ -12,15 +85,22 @@ exports.uploadDocument = asyncHandler(async (req, res) => {
   }
 
   const file = req.files.file;
-  const uploadPath = path.join(__dirname, '../uploads/documents/', file.name);
+  ensureDocumentUploadDir();
+
+  const originalFileName = sanitizeFilename(file.name);
+  const storedFileName = `${Date.now()}-${crypto.randomUUID()}-${originalFileName}`;
+  const uploadPath = path.join(DOCUMENT_UPLOAD_DIR, storedFileName);
 
   await file.mv(uploadPath);
 
   const document = await Document.create({
     ...req.body,
-    currentFileUrl: `/uploads/documents/${file.name}`,
+    title: req.body.title || path.parse(originalFileName).name,
+    category: req.body.category || 'other',
+    accessLevel: req.body.accessLevel || 'internal',
+    currentFileUrl: `/uploads/documents/${storedFileName}`,
     fileSize: file.size,
-    documentType: file.mimetype.includes('pdf') ? 'pdf' : 'other',
+    documentType: detectDocumentType(file),
     uploadedBy: req.user.id
   });
 
@@ -36,22 +116,13 @@ exports.uploadDocument = asyncHandler(async (req, res) => {
 exports.getDocuments = asyncHandler(async (req, res) => {
   const { category, status, department, accessLevel } = req.query;
   
-  let query = {};
+  const query = {};
   if (category) query.category = category;
   if (status) query.status = status;
   if (department) query.department = department;
   if (accessLevel) query.accessLevel = accessLevel;
 
-  // Filter based on user role
-  if (!['admin', 'management'].includes(req.user.role)) {
-    query.$or = [
-      { accessLevel: 'public' },
-      { allowedRoles: req.user.role },
-      { uploadedBy: req.user.id }
-    ];
-  }
-
-  const documents = await Document.find(query)
+  const documents = await Document.find(combineConditions(query, buildAccessCondition(req.user)))
     .populate('uploadedBy', 'username fullName')
     .sort({ createdAt: -1 });
 
@@ -75,16 +146,9 @@ exports.getDocument = asyncHandler(async (req, res) => {
     throw new Error('Document not found');
   }
 
-  // Check access permission
-  if (!['admin', 'management'].includes(req.user.role)) {
-    if (document.accessLevel === 'restricted' || 
-        document.accessLevel === 'confidential') {
-      if (!document.allowedRoles.includes(req.user.role) && 
-          document.uploadedBy.toString() !== req.user.id) {
-        res.status(403);
-        throw new Error('Access denied');
-      }
-    }
+  if (!userCanAccessDocument(document, req.user)) {
+    res.status(403);
+    throw new Error('Access denied');
   }
 
   // Update last accessed
@@ -205,16 +269,26 @@ exports.approveDocument = asyncHandler(async (req, res) => {
 // @route   GET /api/documents/search
 // @access  Private
 exports.searchDocuments = asyncHandler(async (req, res) => {
-  const { query } = req.query;
+  const query = (req.query.query || req.query.q || '').trim();
 
-  const documents = await Document.find({
+  if (!query) {
+    return res.status(400).json({
+      success: false,
+      message: 'Search query is required'
+    });
+  }
+
+  const searchRegex = new RegExp(escapeRegex(query), 'i');
+  const searchCondition = {
     $or: [
-      { title: { $regex: query, $options: 'i' } },
-      { description: { $regex: query, $options: 'i' } },
-      { tags: { $in: [new RegExp(query, 'i')] } },
-      { ocrText: { $regex: query, $options: 'i' } }
+      { title: searchRegex },
+      { description: searchRegex },
+      { tags: { $in: [searchRegex] } },
+      { ocrText: searchRegex }
     ]
-  })
+  };
+
+  const documents = await Document.find(combineConditions(searchCondition, buildAccessCondition(req.user)))
     .populate('uploadedBy', 'username fullName')
     .limit(50);
 

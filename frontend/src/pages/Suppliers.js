@@ -79,7 +79,10 @@ const Suppliers = () => {
             <Select
               label="Category"
               value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, category: e.target.value });
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+              }}
             >
               <option value="">All Categories</option>
               <option value="yarn">Yarn Supplier</option>
@@ -191,6 +194,7 @@ const Suppliers = () => {
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
                 onPageChange={(page) => setPagination({ ...pagination, currentPage: page })}
+                              onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
               />
             </>
           )}

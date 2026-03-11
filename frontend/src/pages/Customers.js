@@ -15,7 +15,7 @@ const Customers = () => {
   useEffect(() => {
     fetchCustomers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, pagination.currentPage]);
+  }, [searchTerm, pagination.currentPage]); // eslint-disable-line
 
   const fetchCustomers = async () => {
     try {
@@ -78,7 +78,10 @@ const Customers = () => {
           <Input
             placeholder="Search by name, code, or contact..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+              }}
           />
         </CardBody>
       </Card>
@@ -166,6 +169,7 @@ const Customers = () => {
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
                 onPageChange={(page) => setPagination({ ...pagination, currentPage: page })}
+                              onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
               />
             </>
           )}

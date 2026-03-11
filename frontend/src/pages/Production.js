@@ -9,6 +9,7 @@ const Production = () => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('create'); // 'create' | 'view' | 'edit'
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [filters, setFilters] = useState({ status: '', priority: '' });
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
@@ -55,16 +56,19 @@ const Production = () => {
 
   const handleCreatePlan = () => {
     setSelectedPlan(null);
+    setModalType('create');
     setShowModal(true);
   };
 
   const handleEditPlan = (plan) => {
     setSelectedPlan(plan);
+    setModalType('edit');
     setShowModal(true);
   };
 
   const handleViewPlan = (plan) => {
     setSelectedPlan(plan);
+    setModalType('view');
     setShowModal(true);
   };
 
@@ -121,7 +125,10 @@ const Production = () => {
             <Select
               label="Status"
               value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, status: e.target.value });
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+              }}
             >
               <option value="">All Status</option>
               <option value="draft">Draft</option>
@@ -134,7 +141,10 @@ const Production = () => {
             <Select
               label="Priority"
               value={filters.priority}
-              onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, priority: e.target.value });
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+              }}
             >
               <option value="">All Priority</option>
               <option value="low">Low</option>
@@ -257,7 +267,7 @@ const Production = () => {
               <Pagination
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
-                onPageChange={(page) => setPagination({ ...pagination, currentPage: page })}
+                onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
               />
             </>
           )}
@@ -268,6 +278,7 @@ const Production = () => {
       {showModal && (
         <ProductionPlanModal
           plan={selectedPlan}
+          mode={modalType}
           onClose={() => setShowModal(false)}
           onSave={() => {
             setShowModal(false);
@@ -279,8 +290,8 @@ const Production = () => {
   );
 };
 
-const ProductionPlanModal = ({ plan, onClose, onSave }) => {
-  const isViewMode = plan && plan.status !== 'draft' && plan.status !== 'approved';
+const ProductionPlanModal = ({ plan, mode = 'create', onClose, onSave }) => {
+  const isViewMode = mode === 'view';
   const [formData, setFormData] = useState({
     startDate: plan ? new Date(plan.startDate).toISOString().split('T')[0] : '',
     endDate: plan?.endDate ? new Date(plan.endDate).toISOString().split('T')[0] : '',

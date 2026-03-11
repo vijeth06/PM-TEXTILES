@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { employeesAPI } from '../services/analyticsAPI';
+import toast from 'react-hot-toast';
 import { 
   UserGroupIcon, 
   PlusIcon, 
@@ -13,6 +14,7 @@ export default function EmployeeManagement() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ department: 'all', status: 'active' });
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [newEmployee, setNewEmployee] = useState({
     fullName: '', email: '', phone: '', department: 'production',
     designation: '', employmentType: 'permanent'
@@ -61,11 +63,11 @@ export default function EmployeeManagement() {
         checkIn: new Date().toISOString(),
         status: 'present'
       });
-      window.alert('Attendance marked successfully!');
+      toast.success('Attendance marked successfully');
       fetchEmployees();
     } catch (error) {
       console.error('Error marking attendance:', error);
-      window.alert('Failed to mark attendance');
+      toast.error(error.response?.data?.message || 'Failed to mark attendance');
     }
   };
 
@@ -77,7 +79,7 @@ export default function EmployeeManagement() {
       const lastName = parts.slice(1).join(' ') || 'NA';
 
       if (!firstName) {
-        window.alert('Full name is required');
+        toast.error('Full name is required');
         return;
       }
 
@@ -95,13 +97,13 @@ export default function EmployeeManagement() {
           joinDate: new Date().toISOString()
         }
       });
-      window.alert('Employee added successfully!');
+      toast.success('Employee added successfully');
       setShowAddModal(false);
       setNewEmployee({ fullName: '', email: '', phone: '', department: 'production', designation: '', employmentType: 'permanent' });
       fetchEmployees();
     } catch (error) {
       console.error('Error adding employee:', error);
-      window.alert(error.response?.data?.message || 'Failed to add employee');
+      toast.error(error.response?.data?.message || 'Failed to add employee');
     }
   };
 
@@ -197,7 +199,7 @@ export default function EmployeeManagement() {
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Present Today</dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Present This Month</dt>
                     <dd className="text-2xl font-semibold text-gray-900">
                       {employees.filter(e => (e.attendance?.currentMonthPresent || 0) > 0).length}
                     </dd>
@@ -305,7 +307,10 @@ export default function EmployeeManagement() {
                             >
                               Mark Attendance
                             </button>
-                            <button className="text-gray-600 hover:text-gray-900">
+                            <button
+                              onClick={() => setSelectedEmployee(employee)}
+                              className="text-gray-600 hover:text-gray-900"
+                            >
                               View Details
                             </button>
                           </td>
@@ -381,6 +386,71 @@ export default function EmployeeManagement() {
                     disabled={!newEmployee.fullName}
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50">
                     Add Employee
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedEmployee && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setSelectedEmployee(null)}></div>
+              <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Employee Details</h3>
+                    <p className="text-sm text-gray-500">{selectedEmployee.employeeCode}</p>
+                  </div>
+                  <button onClick={() => setSelectedEmployee(null)} className="text-gray-400 hover:text-gray-600">×</button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div>
+                    <p className="text-gray-500">Name</p>
+                    <p className="font-medium text-gray-900">{`${selectedEmployee.personalInfo?.firstName || ''} ${selectedEmployee.personalInfo?.lastName || ''}`.trim() || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Department</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.employmentDetails?.department || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Designation</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.employmentDetails?.designation || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Employment Type</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.employmentDetails?.employmentType || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Email</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.personalInfo?.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Phone</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.personalInfo?.contactNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Join Date</p>
+                    <p className="font-medium text-gray-900">
+                      {selectedEmployee.employmentDetails?.joinDate ? new Date(selectedEmployee.employmentDetails.joinDate).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Attendance Summary</p>
+                    <p className="font-medium text-gray-900">
+                      Present: {selectedEmployee.attendance?.totalPresent || 0}, Absent: {selectedEmployee.attendance?.totalAbsent || 0}, Leave: {selectedEmployee.attendance?.totalLeave || 0}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => setSelectedEmployee(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Close
                   </button>
                 </div>
               </div>

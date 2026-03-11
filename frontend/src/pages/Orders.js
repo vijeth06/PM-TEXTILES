@@ -133,7 +133,10 @@ const Orders = () => {
             <Select
               label="Status"
               value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, status: e.target.value });
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+              }}
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -147,7 +150,10 @@ const Orders = () => {
             <Select
               label="Priority"
               value={filters.priority}
-              onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+              onChange={(e) => {
+                setFilters({ ...filters, priority: e.target.value });
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+              }}
             >
               <option value="">All Priority</option>
               <option value="low">Low</option>
@@ -270,6 +276,7 @@ const Orders = () => {
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
                 onPageChange={(page) => setPagination({ ...pagination, currentPage: page })}
+                              onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
               />
             </>
           )}
@@ -417,7 +424,7 @@ const ViewOrderModal = ({ order, onClose }) => {
             <h3 className="font-semibold text-gray-900 mb-1">Delivery Address</h3>
             <p className="text-sm text-gray-600">
               {typeof data.deliveryAddress === 'object'
-                ? `${data.deliveryAddress.street || ''}, ${data.deliveryAddress.city || ''}, ${data.deliveryAddress.state || ''} ${data.deliveryAddress.pinCode || ''}`
+                ? `${data.deliveryAddress.line1 || ''}, ${data.deliveryAddress.city || ''}, ${data.deliveryAddress.state || ''} ${data.deliveryAddress.pincode || ''}`
                 : data.deliveryAddress
               }
             </p>

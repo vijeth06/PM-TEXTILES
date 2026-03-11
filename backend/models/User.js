@@ -72,13 +72,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     select: false // Don't return this in queries by default
   },
-  backupCodes: [{
-    code: String,
-    used: {
-      type: Boolean,
-      default: false
-    }
-  }]
+  backupCodes: {
+    type: [{
+      code: String,
+      used: {
+        type: Boolean,
+        default: false
+      }
+    }],
+    default: [],
+    select: false
+  }
 }, {
   timestamps: true
 });

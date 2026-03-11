@@ -101,7 +101,7 @@ const documentSchema = new mongoose.Schema({
 });
 
 // Generate document number
-documentSchema.pre('save', async function(next) {
+documentSchema.pre('validate', async function(next) {
   if (!this.documentNumber) {
     const count = await this.constructor.countDocuments();
     const year = new Date().getFullYear();

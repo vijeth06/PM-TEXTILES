@@ -81,7 +81,10 @@ exports.createPayment = async (req, res) => {
       orderDoc.paymentStatus = 'paid';
     } else if (paidAmount > 0) {
       orderDoc.paymentStatus = 'partial';
+    } else {
+      orderDoc.paymentStatus = 'unpaid';
     }
+    orderDoc.balanceAmount = Math.max(0, orderDoc.totalValue - paidAmount);
 
     await orderDoc.save();
 
@@ -100,17 +103,75 @@ exports.createPayment = async (req, res) => {
 // Update payment
 exports.updatePayment = async (req, res) => {
   try {
-    const payment = await Payment.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
+    const payment = await Payment.findById(req.params.id);
     if (!payment) {
       return res.status(404).json({ success: false, message: 'Payment not found' });
     }
 
+    const orderId = payment.order;
+
+    // Apply updates
+    Object.assign(payment, req.body);
+    await payment.save();
+
+    // Recalculate order payment status
+    const orderDoc = await Order.findById(orderId);
+    if (orderDoc) {
+      const totalPaid = await Payment.aggregate([
+        { $match: { order: orderDoc._id, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      const paidAmount = totalPaid.length > 0 ? totalPaid[0].total : 0;
+
+      if (paidAmount >= orderDoc.totalValue) {
+        orderDoc.paymentStatus = 'paid';
+      } else if (paidAmount > 0) {
+        orderDoc.paymentStatus = 'partial';
+      } else {
+        orderDoc.paymentStatus = 'unpaid';
+      }
+      orderDoc.balanceAmount = Math.max(0, orderDoc.totalValue - paidAmount);
+      await orderDoc.save();
+    }
+
     res.json({ success: true, data: payment });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete payment
+exports.deletePayment = async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    const orderId = payment.order;
+    await payment.deleteOne();
+
+    // Recalculate order payment status after deletion
+    const orderDoc = await Order.findById(orderId);
+    if (orderDoc) {
+      const totalPaid = await Payment.aggregate([
+        { $match: { order: orderDoc._id, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      const paidAmount = totalPaid.length > 0 ? totalPaid[0].total : 0;
+
+      if (paidAmount >= orderDoc.totalValue) {
+        orderDoc.paymentStatus = 'paid';
+      } else if (paidAmount > 0) {
+        orderDoc.paymentStatus = 'partial';
+      } else {
+        orderDoc.paymentStatus = 'unpaid';
+      }
+      orderDoc.balanceAmount = Math.max(0, orderDoc.totalValue - paidAmount);
+      await orderDoc.save();
+    }
+
+    res.json({ success: true, message: 'Payment deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -127,7 +188,7 @@ exports.getOrderPaymentSummary = async (req, res) => {
     const payments = await Payment.find({ order: req.params.orderId });
     
     const summary = {
-      totalAmount: order.totalAmount,
+      totalAmount: order.totalValue,
       paidAmount: payments
         .filter(p => p.status === 'completed')
         .reduce((sum, p) => sum + p.amount, 0),

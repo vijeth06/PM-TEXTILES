@@ -11,7 +11,8 @@ router.route('/')
 
 router.route('/:id')
   .get(paymentController.getPayment)
-  .put(authorize('admin', 'management'), paymentController.updatePayment);
+  .put(authorize('admin', 'management'), paymentController.updatePayment)
+  .delete(authorize('admin'), paymentController.deletePayment);
 
 router.get('/order/:orderId/summary', paymentController.getOrderPaymentSummary);
 

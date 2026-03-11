@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { documentsAPI } from '../services/analyticsAPI';
 import { 
   DocumentTextIcon, 
@@ -54,7 +55,7 @@ export default function DocumentManagement() {
     }
     try {
       setLoading(true);
-      const response = await documentsAPI.searchDocuments({ q: searchQuery });
+      const response = await documentsAPI.searchDocuments({ query: searchQuery });
       setDocuments(response.data.data || []);
     } catch (error) {
       console.error('Error searching documents:', error);
@@ -78,11 +79,11 @@ export default function DocumentManagement() {
 
       try {
         await documentsAPI.uploadDocument(formData);
-        window.alert('Document uploaded successfully!');
+        toast.success('Document uploaded successfully!');
         fetchDocuments();
       } catch (error) {
         console.error('Error uploading document:', error);
-        window.alert('Failed to upload document');
+        toast.error('Failed to upload document');
       }
     };
     fileInput.click();
@@ -132,7 +133,7 @@ export default function DocumentManagement() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search documents by title, description, or tags..."
                 className="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />

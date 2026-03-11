@@ -362,7 +362,8 @@ const RecordPaymentModal = ({ orders, onClose, onSuccess }) => {
           <option value="cheque">Cheque</option>
           <option value="cash">Cash</option>
           <option value="upi">UPI</option>
-          <option value="credit_card">Credit Card</option>
+          <option value="card">Credit / Debit Card</option>
+          <option value="credit">Credit (Post-pay)</option>
         </Select>
 
         <Input

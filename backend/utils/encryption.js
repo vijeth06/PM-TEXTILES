@@ -15,7 +15,15 @@ const ITERATIONS = 100000;
 
 // Get encryption key from environment or generate one
 const getEncryptionKey = () => {
-  const secret = process.env.ENCRYPTION_SECRET || 'default-secret-please-change-in-production';
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_SECRET environment variable must be set in production');
+    }
+    // Development-only fallback — not safe for production
+    console.warn('⚠️  ENCRYPTION_SECRET is not set. Set it in your .env file before deploying.');
+    return crypto.scryptSync('default-secret-please-change-in-production', 'salt', KEY_LENGTH);
+  }
   return crypto.scryptSync(secret, 'salt', KEY_LENGTH);
 };
 
@@ -249,16 +257,63 @@ const base32Encode = (buffer) => {
 };
 
 /**
+ * Base32 decoding (for 2FA secrets)
+ */
+const base32Decode = (value) => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const normalized = String(value || '')
+    .toUpperCase()
+    .replace(/=+$/g, '')
+    .replace(/\s+/g, '');
+
+  let bits = 0;
+  let accumulator = 0;
+  const bytes = [];
+
+  for (const char of normalized) {
+    const index = alphabet.indexOf(char);
+    if (index === -1) {
+      throw new Error('Invalid Base32 secret');
+    }
+
+    accumulator = (accumulator << 5) | index;
+    bits += 5;
+
+    if (bits >= 8) {
+      bytes.push((accumulator >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(bytes);
+};
+
+/**
  * Verify TOTP token
  * @param {string} token - 6-digit token
  * @param {string} secret - Base32 secret
  * @returns {boolean} True if valid
  */
-const verifyTOTP = (token, secret) => {
-  // Simple TOTP verification (30-second window)
-  const time = Math.floor(Date.now() / 30000);
-  const expectedToken = generateTOTP(secret, time);
-  return token === expectedToken;
+const verifyTOTP = (token, secret, window = 1) => {
+  try {
+    const normalizedToken = String(token || '').replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(normalizedToken)) {
+      return false;
+    }
+
+    const currentCounter = Math.floor(Date.now() / 30000);
+    for (let offset = -window; offset <= window; offset += 1) {
+      const expectedToken = generateTOTP(secret, currentCounter + offset);
+      if (crypto.timingSafeEqual(Buffer.from(normalizedToken), Buffer.from(expectedToken))) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('TOTP verification error:', error.message);
+    return false;
+  }
 };
 
 /**
@@ -267,11 +322,12 @@ const verifyTOTP = (token, secret) => {
  * @param {number} time - Time counter
  * @returns {string} 6-digit token
  */
-const generateTOTP = (secret, time) => {
+const generateTOTP = (secret, time = Math.floor(Date.now() / 30000)) => {
   const buffer = Buffer.alloc(8);
-  buffer.writeUInt32BE(time, 4);
-  
-  const hmac = crypto.createHmac('sha1', Buffer.from(secret, 'base64'));
+  buffer.writeBigUInt64BE(BigInt(time));
+
+  const decodedSecret = base32Decode(secret);
+  const hmac = crypto.createHmac('sha1', decodedSecret);
   hmac.update(buffer);
   const hash = hmac.digest();
 

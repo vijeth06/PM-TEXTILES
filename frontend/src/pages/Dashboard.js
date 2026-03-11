@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useDashboardUpdates } from '../hooks/useRealTimeUpdates';
 import {
@@ -28,7 +28,7 @@ const Dashboard = () => {
 
   const fetchDashboardMetrics = async () => {
     try {
-      const response = await axios.get('/api/dashboard/metrics');
+      const response = await api.get('/dashboard/metrics');
       setMetrics(response.data.data);
     } catch (error) {
       console.error('Failed to fetch dashboard metrics:', error);

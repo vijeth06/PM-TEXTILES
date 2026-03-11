@@ -9,13 +9,13 @@ const {
   deleteNotification,
   clearAll
 } = require('../controllers/notificationController');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
 
 router.route('/')
   .get(getNotifications)
-  .post(createNotification);
+  .post(authorize('admin'), createNotification);
 
 router.put('/read-all', markAllAsRead);
 router.delete('/clear-all', clearAll);

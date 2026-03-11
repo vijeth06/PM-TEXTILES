@@ -47,11 +47,8 @@ const DowntimeModal = ({ stage, onClose, onSuccess }) => {
         notes: formData.notes
       };
 
-      // Keep consistent with backend ProductionStage schema.
-      const updatedDowntime = [...(stage.downtimeLog || []), downtime];
-
       await productionAPI.updateStage(stage._id, {
-        downtimeLog: updatedDowntime
+        appendDowntime: downtime
       });
 
       toast.success('Downtime logged successfully');
