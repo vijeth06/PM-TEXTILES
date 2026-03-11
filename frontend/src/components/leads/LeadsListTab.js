@@ -131,8 +131,20 @@ export default function LeadsListTab() {
     e.preventDefault();
     try {
       const payload = {
-        ...formData,
-        estimatedValue: formData.estimatedValue ? Number(formData.estimatedValue) : undefined
+        companyName: formData.companyName,
+        source: formData.source,
+        status: formData.status,
+        priority: formData.priority,
+        contactPerson: {
+          name: formData.contactPerson,
+          phone: formData.contactNumber,
+          email: formData.email
+        },
+        requirements: {
+          estimatedValue: formData.estimatedValue ? Number(formData.estimatedValue) : undefined
+        },
+        notes: formData.requirements,
+        address: formData.address ? { line1: formData.address } : undefined
       };
       await leadsAPI.createLead(payload);
       toast.success('Lead created successfully!');
@@ -268,14 +280,14 @@ export default function LeadsListTab() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{lead.contactPerson}</div>
+                    <div className="text-sm text-gray-900">{lead.contactPerson?.name || 'N/A'}</div>
                     <div className="text-sm text-gray-500 flex items-center">
                       <PhoneIcon className="h-4 w-4 mr-1" />
-                      {lead.contactNumber}
+                      {lead.contactPerson?.phone || lead.contactPerson?.mobile || 'N/A'}
                     </div>
                     <div className="text-sm text-gray-500 flex items-center">
                       <EnvelopeIcon className="h-4 w-4 mr-1" />
-                      {lead.email}
+                      {lead.contactPerson?.email || 'N/A'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -289,7 +301,7 @@ export default function LeadsListTab() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ₹{lead.estimatedValue?.toLocaleString('en-IN') || 'N/A'}
+                    ₹{lead.requirements?.estimatedValue?.toLocaleString('en-IN') || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
