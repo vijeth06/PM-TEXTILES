@@ -39,6 +39,9 @@ Thumbs.db
 
 # Testing
 coverage/
+frontend/playwright/.auth/
+frontend/playwright-report/
+frontend/test-results/
 
 # Temporary files
 *.tmp
