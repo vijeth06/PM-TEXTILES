@@ -50,7 +50,7 @@ const Inventory = () => {
   }, []);
 
   // Real-time inventory updates
-  useInventoryUpdates((data) => {
+  const handleInventoryUpdate = useCallback((data) => {
     console.log('Real-time inventory update received:', data);
     // Refresh inventory when updates occur
     fetchInventory();
@@ -68,7 +68,9 @@ const Inventory = () => {
     if (data.alerts) {
       setAlerts(data.alerts);
     }
-  });
+  }, [fetchInventory]);
+
+  useInventoryUpdates(handleInventoryUpdate);
 
   useEffect(() => {
     fetchInventory();
@@ -185,7 +187,7 @@ const Inventory = () => {
               </div>
               <div className="text-sm mt-2">
                 {alerts.slice(0, 3).map((alert, idx) => (
-                  <div key={idx}>{alert.itemName} - Available: {alert.availableQty} (Reorder at: {alert.reorderPoint})</div>
+                  <div key={idx}>{alert.materialName || alert.itemName} - Available: {alert.currentStock ?? alert.availableQty} (Reorder at: {alert.reorderPoint})</div>
                 ))}
               </div>
             </div>
