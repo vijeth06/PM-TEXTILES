@@ -1,0 +1,124 @@
+name: Playwright E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    env:
+      CI: true
+      PORT: 5055
+      NODE_ENV: test
+      MONGODB_URI: mongodb://127.0.0.1:27017/pm_textiles_ci
+      JWT_SECRET: ci_jwt_secret_for_tests
+      JWT_EXPIRE: 30d
+      ALLOWED_ORIGINS: http://127.0.0.1:3000
+      DEFAULT_ADMIN_USERNAME: admin
+      DEFAULT_ADMIN_EMAIL: admin@pmtextiles.com
+      DEFAULT_ADMIN_PASSWORD: Admin@123
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Prepare backend env
+        run: |
+          cat > backend/.env << EOF
+          MONGODB_URI=${MONGODB_URI}
+          PORT=${PORT}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_EXPIRE=${JWT_EXPIRE}
+          NODE_ENV=${NODE_ENV}
+          ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+          DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME}
+          DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
+          DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+          EOF
+
+      - name: Prepare frontend env
+        run: |
+          cat > frontend/.env << 'EOF'
+          REACT_APP_SERVER_URL=http://127.0.0.1:5055
+          EOF
+
+      - name: Seed admin user
+        run: node backend/seedUser.js
+
+      - name: Start backend
+        run: |
+          npm run dev > backend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5055/api/health >/dev/null; then
+              echo "Backend is up"
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:5055/api/health >/dev/null
+
+      - name: Start frontend
+        run: |
+          npm run start --prefix frontend > frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              echo "Frontend is up"
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000 >/dev/null
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+        working-directory: frontend
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_USERNAME: admin
+          PLAYWRIGHT_PASSWORD: Admin@123
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            backend.log
+            frontend.log

@@ -1,4 +1,9 @@
-const { test, expect } = require('@playwright/test');
+const {
+  test,
+  expect,
+  collectConsoleErrors,
+  expectNoConsoleErrors,
+} = require('./fixtures');
 
 const pages = [
   { path: '/dashboard', heading: /dashboard/i },
@@ -21,14 +26,11 @@ const pages = [
 
 for (const pageConfig of pages) {
   test(`loads ${pageConfig.path}`, async ({ page }) => {
-    const consoleErrors = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
-    });
+    const consoleErrors = await collectConsoleErrors(page);
 
     await page.goto(pageConfig.path);
     await expect(page).toHaveURL(new RegExp(`${pageConfig.path.replace('/', '\\/')}`));
     await expect(page.getByRole('heading', { name: pageConfig.heading }).first()).toBeVisible();
-    expect(consoleErrors, `Console errors on ${pageConfig.path}: ${consoleErrors.join('\n')}`).toEqual([]);
+    await expectNoConsoleErrors(expect, consoleErrors, pageConfig.path);
   });
 }
