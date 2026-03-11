@@ -44,8 +44,8 @@ const Production = () => {
       });
       setPlans(response.data.data);
       setPagination({
-        currentPage: response.data.currentPage,
-        totalPages: response.data.totalPages
+        currentPage: response.data.currentPage || 1,
+        totalPages: response.data.totalPages || 1
       });
     } catch (error) {
       toast.error('Failed to fetch production plans');

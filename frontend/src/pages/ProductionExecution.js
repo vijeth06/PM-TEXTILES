@@ -38,23 +38,25 @@ const ProductionExecution = () => {
       });
       
       const allStages = [];
-      if (stagesResponse.data.data && stagesResponse.data.data.length > 0) {
-        // Fetch stages for each plan
-        for (const plan of stagesResponse.data.data) {
-          try {
-            const stageRes = await productionAPI.getStages(plan._id);
-            const planStages = stageRes.data.data || [];
-            // Add planNo and planId to each stage for reference
+      const plans = stagesResponse.data.data || [];
+      if (plans.length > 0) {
+        const stageResults = await Promise.allSettled(
+          plans.map(plan => productionAPI.getStages(plan._id))
+        );
+        stageResults.forEach((result, i) => {
+          if (result.status === 'fulfilled') {
+            const planStages = result.value.data.data || [];
+            const plan = plans[i];
             const enrichedStages = planStages.map(stage => ({
               ...stage,
               planNo: plan.planNo,
               planId: plan._id
             }));
             allStages.push(...enrichedStages);
-          } catch (error) {
-            console.error(`Failed to fetch stages for plan ${plan._id}:`, error);
+          } else {
+            console.error(`Failed to fetch stages for plan ${plans[i]._id}:`, result.reason);
           }
-        }
+        });
       }
       
       setSummaryCounts({

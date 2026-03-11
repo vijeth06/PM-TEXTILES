@@ -203,7 +203,7 @@ const Dashboard = () => {
               <h3 className="text-lg font-semibold text-gray-900">Wastage Summary ({metrics.wastage.period})</h3>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-red-600">₹{metrics.wastage.totalCost.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600">₹{(metrics.wastage.totalCost || 0).toLocaleString()}</p>
               <p className="text-sm text-gray-600">{metrics.wastage.recordCount} incidents</p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { authAPI, usersAPI, settingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -64,23 +64,29 @@ const Settings = () => {
 
 const ProfileTab = () => {
   const { user } = useAuth();
-  const [userData, setUserData] = useState({
-    fullName: '',
-    email: '',
-    username: '',
-    role: ''
-  });
+  const [formData, setFormData] = useState({ fullName: '', email: '' });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setUserData({
-        fullName: user.fullName || '',
-        email: user.email || '',
-        username: user.username || '',
-        role: user.role || ''
-      });
+      setFormData({ fullName: user.fullName || '', email: user.email || '' });
     }
   }, [user]);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!formData.fullName.trim()) { toast.error('Full name is required'); return; }
+    if (!formData.email.trim()) { toast.error('Email is required'); return; }
+    try {
+      setLoading(true);
+      await usersAPI.updateUser(user._id, { fullName: formData.fullName, email: formData.email });
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Card>
@@ -96,50 +102,42 @@ const ProfileTab = () => {
               </div>
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">{userData.fullName}</h3>
-              <p className="text-gray-600">{userData.email}</p>
-              <Badge variant="info" className="mt-2">{userData.role?.toUpperCase()}</Badge>
+              <h3 className="text-xl font-bold text-gray-900">{user?.fullName}</h3>
+              <p className="text-gray-600">{user?.email}</p>
+              <Badge variant="info" className="mt-2">{user?.role?.toUpperCase()}</Badge>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-              <div className="text-gray-900">{userData.fullName}</div>
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Full Name" value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} required />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <div className="text-gray-900 py-2">{user?.username}</div>
+              </div>
+              <Input label="Email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <div className="text-gray-900 py-2 capitalize">{user?.role?.replace(/_/g, ' ')}</div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-              <div className="text-gray-900">{userData.username}</div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</Button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div className="text-gray-900">{userData.email}</div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <div className="text-gray-900 capitalize">{userData.role?.replace(/_/g, ' ')}</div>
-            </div>
-          </div>
-
+          </form>
           {user?.permissions && user.permissions.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
               <div className="flex flex-wrap gap-2">
                 {user.permissions.map((permission, idx) => (
-                  <Badge key={idx} variant="default">
-                    {permission.replace(/_/g, ' ').toUpperCase()}
-                  </Badge>
+                  <Badge key={idx} variant="default">{permission.replace(/_/g, ' ').toUpperCase()}</Badge>
                 ))}
               </div>
             </div>
           )}
-
           {user?.lastLogin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Last Login</label>
-              <div className="text-gray-900">
-                {new Date(user.lastLogin).toLocaleString()}
-              </div>
+              <div className="text-gray-900">{new Date(user.lastLogin).toLocaleString()}</div>
             </div>
           )}
         </div>
@@ -147,7 +145,6 @@ const ProfileTab = () => {
     </Card>
   );
 };
-
 const PasswordTab = () => {
   const [formData, setFormData] = useState({
     currentPassword: '',

@@ -71,7 +71,7 @@ const AuditTrail = () => {
 
   const handleDateChange = ({ startDate, endDate }) => {
     setFilters({ ...filters, startDate, endDate });
-    setPagination({ ...pagination, page: 1 });
+      setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const clearFilters = () => {
@@ -82,7 +82,7 @@ const AuditTrail = () => {
       startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0]
     });
-    setPagination({ ...pagination, page: 1 });
+      setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const getActionBadge = (action) => {
@@ -162,7 +162,7 @@ const AuditTrail = () => {
               value={filters.action}
               onChange={(e) => {
                 setFilters({ ...filters, action: e.target.value });
-                setPagination({ ...pagination, page: 1 });
+                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
             >
               <option value="">All Actions</option>
@@ -181,7 +181,7 @@ const AuditTrail = () => {
               value={filters.entity}
               onChange={(e) => {
                 setFilters({ ...filters, entity: e.target.value });
-                setPagination({ ...pagination, page: 1 });
+                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
             >
               <option value="">All Entities</option>
@@ -199,7 +199,7 @@ const AuditTrail = () => {
               value={filters.user}
               onChange={(e) => {
                 setFilters({ ...filters, user: e.target.value });
-                setPagination({ ...pagination, page: 1 });
+                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
             />
 
@@ -285,7 +285,7 @@ const AuditTrail = () => {
                       variant="outline"
                       size="sm"
                       disabled={pagination.page === 1}
-                      onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                     >
                       Previous
                     </Button>
@@ -296,7 +296,7 @@ const AuditTrail = () => {
                       variant="outline"
                       size="sm"
                       disabled={pagination.page === pagination.pages}
-                      onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                     >
                       Next
                     </Button>

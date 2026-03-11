@@ -43,6 +43,7 @@ export default function DocumentManagement() {
       setDocuments(response.data.data || []);
     } catch (error) {
       console.error('Error fetching documents:', error);
+       toast.error('Failed to load documents');
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,11 @@ export default function DocumentManagement() {
     }
     try {
       setLoading(true);
-      const response = await documentsAPI.searchDocuments({ query: searchQuery });
+      const response = await documentsAPI.searchDocuments({
+        query: searchQuery,
+        ...(filters.category !== 'all' && { category: filters.category }),
+        ...(filters.status !== 'all' && { status: filters.status })
+      });
       setDocuments(response.data.data || []);
     } catch (error) {
       console.error('Error searching documents:', error);

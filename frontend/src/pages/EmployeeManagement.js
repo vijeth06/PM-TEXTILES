@@ -51,6 +51,7 @@ export default function EmployeeManagement() {
       setEmployees(response.data.data || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
+        toast.error('Failed to load employees');
     } finally {
       setLoading(false);
     }

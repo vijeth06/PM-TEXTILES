@@ -30,8 +30,7 @@ export default function TextileProduction() {
     try {
       if (activeTab === 'looms') {
         const [productionsRes] = await Promise.allSettled([
-          textileAPI.getLoomProductions(),
-          textileAPI.getEfficiencyDashboard()
+          textileAPI.getLoomProductions()
         ]);
         if (productionsRes.status === 'fulfilled') {
           const prods = productionsRes.value.data.data || [];
@@ -43,8 +42,7 @@ export default function TextileProduction() {
         }
       } else if (activeTab === 'dyeing') {
         const [batchesRes] = await Promise.allSettled([
-          textileAPI.getDyeingBatches(),
-          textileAPI.getDyeingStatistics()
+          textileAPI.getDyeingBatches()
         ]);
         if (batchesRes.status === 'fulfilled') {
           const batches = batchesRes.value.data.data || [];

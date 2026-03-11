@@ -250,7 +250,7 @@ const PaymentsTab = () => {
               {payments.map((payment) => (
                 <tr key={payment._id}>
                   <Td className="font-medium">{payment.order?.orderNo || '-'}</Td>
-                  <Td>{payment.order?.customerName || '-'}</Td>
+                  <Td>{payment.order?.customerId?.name || payment.order?.customerName || '-'}</Td>
                   <Td>{new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}</Td>
                   <Td className="font-medium text-green-600">₹{(payment.amount || 0).toLocaleString()}</Td>
                   <Td className="capitalize">{(payment.paymentMethod || '-').replace(/_/g, ' ')}</Td>
@@ -921,9 +921,13 @@ const FinancialReportsTab = () => {
     try {
       let data = {};
       if (reportType === 'pl') {
+        const dateParams = {
+          ...(dateRange.from && { startDate: dateRange.from }),
+          ...(dateRange.to && { endDate: dateRange.to })
+        };
         const [ordersRes, paymentsRes] = await Promise.all([
-          ordersAPI.getOrders({ limit: 500 }),
-          paymentsAPI.getPayments()
+          ordersAPI.getOrders({ limit: 500, ...dateParams }),
+          paymentsAPI.getPayments({ ...dateParams })
         ]);
         const orders = ordersRes.data.data || [];
         const payments = paymentsRes.data.data || [];
@@ -931,7 +935,11 @@ const FinancialReportsTab = () => {
         const totalPaymentsReceived = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
         data = { totalRevenue, totalPaymentsReceived, orders: orders.length, payments: payments.length };
       } else if (reportType === 'ar_aging') {
-        const response = await ordersAPI.getOrders({ limit: 500 });
+        const response = await ordersAPI.getOrders({
+          limit: 500,
+          ...(dateRange.from && { startDate: dateRange.from }),
+          ...(dateRange.to && { endDate: dateRange.to })
+        });
         const orders = response.data.data || [];
         const unpaid = orders.filter(o => o.paymentStatus !== 'paid');
         data = { unpaidOrders: unpaid };

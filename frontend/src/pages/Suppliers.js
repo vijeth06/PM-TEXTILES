@@ -193,8 +193,7 @@ const Suppliers = () => {
               <Pagination
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
-                onPageChange={(page) => setPagination({ ...pagination, currentPage: page })}
-                              onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
+                onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
               />
             </>
           )}
