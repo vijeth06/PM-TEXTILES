@@ -20,6 +20,11 @@ export const NotificationProvider = ({ children }) => {
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
+      // Only fetch if user is authenticated (token exists)
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return;
+      }
       const response = await notificationAPI.getNotifications();
       setNotifications(response.data.data || []);
       setUnreadCount(response.data.unreadCount || 0);
@@ -89,6 +94,14 @@ export const NotificationProvider = ({ children }) => {
 
   // Fetch notifications and setup real-time listener
   useEffect(() => {
+    // Only fetch if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
     fetchNotifications();
 
     // Named handlers so they can be removed on cleanup
