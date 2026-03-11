@@ -42,7 +42,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password, twoFactorToken = '') => {
     try {
-      const response = await authAPI.login({ username, password, twoFactorToken });
+      const loginPayload = { username, password };
+      if (twoFactorToken && twoFactorToken.trim()) {
+        loginPayload.twoFactorToken = twoFactorToken.trim();
+      }
+      const response = await authAPI.login(loginPayload);
       const { token, refreshToken, user } = response.data.data;
       
       localStorage.setItem('token', token);
