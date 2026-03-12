@@ -115,6 +115,7 @@ jobs:
         working-directory: frontend
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_API_URL: http://127.0.0.1:5055
           PLAYWRIGHT_USERNAME: admin
           PLAYWRIGHT_PASSWORD: Admin@123
 

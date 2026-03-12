@@ -1,10 +1,12 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, request: apiRequest } = require('@playwright/test');
 
 const username = process.env.PLAYWRIGHT_USERNAME || 'admin';
 const password = process.env.PLAYWRIGHT_PASSWORD || 'Admin@123';
+const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:5055';
 
-test('authenticate admin user', async ({ request, page }) => {
-  const response = await request.post('/api/auth/login', {
+test('authenticate admin user', async ({ page }) => {
+  const context = await apiRequest.newContext({ baseURL: apiBase });
+  const response = await context.post('/api/auth/login', {
     data: {
       username,
       password,
@@ -20,7 +22,7 @@ test('authenticate admin user', async ({ request, page }) => {
 
   expect(
     response.ok(),
-    `API login failed with status ${response.status()}. Response: ${JSON.stringify(body)}`
+    `API login failed — status ${response.status()} from ${apiBase}/api/auth/login. Body: ${JSON.stringify(body)}`
   ).toBeTruthy();
 
   const token = body?.data?.token;
