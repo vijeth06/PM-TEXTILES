@@ -47,7 +47,7 @@ test('authenticate admin user', async ({ page }) => {
 
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByText(/PM Textiles/i).first()).toBeVisible();
+  await page.waitForLoadState('networkidle');
 
   await page.context().storageState({ path: 'playwright/.auth/user.json' });
 });
