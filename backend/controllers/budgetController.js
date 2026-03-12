@@ -1,6 +1,19 @@
 const Budget = require('../models/Budget');
 const AuditLog = require('../models/AuditLog');
-const { NotFoundError, ValidationError } = require('../utils/errors');
+
+class NotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
+class ValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
 
 const getBudgets = async (req, res) => {
   try {
