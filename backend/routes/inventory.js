@@ -19,13 +19,14 @@ const {
 } = require('../controllers/inventoryController');
 const { protect, checkPermission } = require('../middleware/auth');
 const { validate, idValidation } = require('../middleware/validation');
+const { cache } = require('../middleware/cache');
 
 router.use(protect);
 
 // Inventory routes
-router.get('/', checkPermission('view_inventory'), getInventory);
-router.get('/lookup', checkPermission('view_inventory'), lookupInventoryBatch);
-router.get('/alerts', checkPermission('view_inventory'), getReorderAlerts);
+router.get('/', checkPermission('view_inventory'), cache(300), getInventory);
+router.get('/lookup', checkPermission('view_inventory'), cache(300), lookupInventoryBatch);
+router.get('/alerts', checkPermission('view_inventory'), cache(300), getReorderAlerts);
 // Purchase Order routes
 router.get('/purchase-orders', checkPermission('view_inventory'), getPurchaseOrders);
 router.post('/purchase-orders', checkPermission('manage_inventory'), createPurchaseOrder);
