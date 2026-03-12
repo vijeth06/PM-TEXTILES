@@ -73,7 +73,7 @@ jobs:
 
       - name: Start backend
         run: |
-          npm run dev > backend.log 2>&1 &
+          npm run start > backend.log 2>&1 &
           for i in {1..60}; do
             if curl -fsS http://127.0.0.1:5055/api/health >/dev/null; then
               echo "Backend is up"
@@ -81,11 +81,18 @@ jobs:
             fi
             sleep 2
           done
-          curl -fsS http://127.0.0.1:5055/api/health >/dev/null
+          if ! curl -fsS http://127.0.0.1:5055/api/health >/dev/null; then
+            echo "Backend failed to start. Last 200 lines of backend.log:"
+            tail -n 200 backend.log || true
+            exit 1
+          fi
 
-      - name: Start frontend
+      - name: Build frontend
+        run: npm run build --prefix frontend
+
+      - name: Serve frontend build
         run: |
-          npm run start --prefix frontend > frontend.log 2>&1 &
+          npx --yes serve -s frontend/build -l 3000 > frontend.log 2>&1 &
           for i in {1..90}; do
             if curl -fsS http://127.0.0.1:3000 >/dev/null; then
               echo "Frontend is up"
@@ -93,7 +100,11 @@ jobs:
             fi
             sleep 2
           done
-          curl -fsS http://127.0.0.1:3000 >/dev/null
+          if ! curl -fsS http://127.0.0.1:3000 >/dev/null; then
+            echo "Frontend failed to start. Last 200 lines of frontend.log:"
+            tail -n 200 frontend.log || true
+            exit 1
+          fi
 
       - name: Install Playwright browser
         run: npx playwright install chromium
