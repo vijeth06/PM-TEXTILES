@@ -140,10 +140,10 @@ app.use('/api/analytics/cost-analysis', analyticsRoutes);
 app.use('/api/procurement/auto-reorder', autoReorderRoutes);
 app.use('/api/procurement/rfq', rfqRoutes);
 app.use('/api/hr/employees', employeeRoutes);
+app.use('/api/hr/documents', documentRoutes);
 app.use('/api/maintenance/schedules', maintenanceRoutes);
 app.use('/api/crm/leads', leadRoutes);
 app.use('/api/sales/quotations', quotationRoutes);
-app.use('/api/documents', documentRoutes);
 
 // Textile-specific Routes
 app.use('/api/textile/loom-production', loomProductionRoutes);
