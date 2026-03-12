@@ -57,7 +57,7 @@ export default function BudgetManagement() {
         toast.success('Budget created successfully');
       }
       setShowModal(false);
-      setFormData({ name: '', departmentId: '', year: new Date().getFullYear(), totalAllocated: 0, allocations: [] });
+      setFormData({ budgetCode: '', fiscalYear: new Date().getFullYear().toString(), period: 'yearly', startDate: '', endDate: '', department: 'overall', category: 'operational', allocations: [], notes: '' });
       setSelectedBudget(null);
       fetchBudgets();
     } catch (error) {
@@ -182,7 +182,6 @@ export default function BudgetManagement() {
               <Tbody>
                 {budgets.map((budget) => {
                   const utilization = budget.overallUtilization || 0;
-                    : 0;
                   return (
                     <tr key={budget._id} className="border-b hover:bg-gray-50">
                       <Td className="font-medium">{budget.budgetCode}</Td>

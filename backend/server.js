@@ -49,6 +49,7 @@ const uploadRoutes = require('./routes/upload');
 const exportRoutes = require('./routes/export');
 const itemMasterRoutes = require('./routes/items');
 const budgetRoutes = require('./routes/budgetRoutes');
+const recipeRoutes = require('./routes/recipes');
 
 // New Feature Routes
 const forecastRoutes = require('./routes/forecasts');
@@ -132,6 +133,7 @@ app.use('/api/quality', qualityRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/items', itemMasterRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/recipes', recipeRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/export', exportRoutes);
 

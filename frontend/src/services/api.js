@@ -260,4 +260,14 @@ export const textileAPI = {
   recordBulkProduction: (id, data) => api.post(`/textile/color-lab/${id}/bulk-production`, data)
 };
 
+// Recipe/BOM API
+export const recipeAPI = {
+  getRecipes: (params) => api.get('/recipes', { params }),
+  getRecipe: (id) => api.get(`/recipes/${id}`),
+  createRecipe: (data) => api.post('/recipes', data),
+  updateRecipe: (id, data) => api.put(`/recipes/${id}`, data),
+  deleteRecipe: (id) => api.delete(`/recipes/${id}`)
+};
+
+export { api };
 export default api;

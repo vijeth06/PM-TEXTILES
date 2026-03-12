@@ -2,7 +2,6 @@ const Budget = require('../models/Budget');
 const AuditLog = require('../models/AuditLog');
 const { NotFoundError, ValidationError } = require('../utils/errors');
 
-// Get all budgets with filtering
 const getBudgets = async (req, res) => {
   try {
     const { fiscalYear, department, status, page = 1, limit = 10 } = req.query;
@@ -12,11 +11,14 @@ const getBudgets = async (req, res) => {
     if (department) query.department = department;
     if (status) query.status = status;
 
-     const budgets = await Budget.find(query)
-       .populate('createdBy', 'name email')
-       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+
+    const budgets = await Budget.find(query)
+      .populate('createdBy', 'username fullName email')
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum);
 
     const total = await Budget.countDocuments(query);
 
@@ -25,9 +27,9 @@ const getBudgets = async (req, res) => {
       data: budgets,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit)
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -35,10 +37,9 @@ const getBudgets = async (req, res) => {
   }
 };
 
-// Get single budget
 const getBudget = async (req, res) => {
   try {
-    const budget = await Budget.findById(req.params.id).populate('createdBy', 'name email');
+    const budget = await Budget.findById(req.params.id).populate('createdBy', 'username fullName email');
     if (!budget) throw new NotFoundError('Budget not found');
     res.json({ success: true, data: budget });
   } catch (error) {
@@ -46,26 +47,21 @@ const getBudget = async (req, res) => {
   }
 };
 
-// Create budget
 const createBudget = async (req, res) => {
   try {
-    const { name, departmentId, year, totalAllocated, allocations } = req.body;
+    const { budgetCode, fiscalYear, period, startDate, endDate, department, category, allocations, notes } = req.body;
 
-    const { budgetCode, fiscalYear, period, startDate, endDate, department, category, allocations } = req.body;
-
-    // Validate required fields
     if (!budgetCode || !fiscalYear || !period || !department || !category) {
-      throw new ValidationError('All required fields must be provided');
+      throw new ValidationError('budgetCode, fiscalYear, period, department and category are required');
     }
 
-    // Check for duplicate budget code
-    const existingBudget = await Budget.findOne({ budgetCode });
+    const existingBudget = await Budget.findOne({ budgetCode: String(budgetCode).toUpperCase().trim() });
     if (existingBudget) {
       throw new ValidationError('Budget code already exists');
     }
 
     const budget = new Budget({
-      budgetCode,
+      budgetCode: String(budgetCode).toUpperCase().trim(),
       fiscalYear,
       period,
       startDate,
@@ -73,6 +69,7 @@ const createBudget = async (req, res) => {
       department,
       category,
       allocations: allocations || [],
+      notes,
       status: 'draft',
       createdBy: req.user._id,
       variance: { amount: 0, percentage: 0, type: 'neutral' }
@@ -80,13 +77,12 @@ const createBudget = async (req, res) => {
 
     await budget.save();
 
-    // Log activity
     await AuditLog.create({
       userId: req.user._id,
       action: 'CREATE_BUDGET',
       entity: 'Budget',
       entityId: budget._id,
-      changes: { budget }
+      changes: { after: budget.toObject() }
     });
 
     res.status(201).json({ success: true, data: budget });
@@ -95,33 +91,41 @@ const createBudget = async (req, res) => {
   }
 };
 
-// Update budget
 const updateBudget = async (req, res) => {
   try {
-    const { totalAllocated, allocations, status } = req.body;
     const budget = await Budget.findById(req.params.id);
-
     if (!budget) throw new NotFoundError('Budget not found');
 
-    const oldData = { ...budget.toObject() };
+    const oldData = budget.toObject();
 
-    // Update fields
-    if (totalAllocated) budget.totalAllocated = totalAllocated;
-    if (allocations) budget.allocations = allocations;
-    if (status) budget.status = status;
+    const updatableFields = [
+      'fiscalYear',
+      'period',
+      'startDate',
+      'endDate',
+      'department',
+      'category',
+      'allocations',
+      'status',
+      'notes',
+      'approvalWorkflow',
+      'evaluation'
+    ];
+
+    updatableFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        budget[field] = req.body[field];
+      }
+    });
 
     await budget.save();
 
-    // Log activity
     await AuditLog.create({
       userId: req.user._id,
       action: 'UPDATE_BUDGET',
       entity: 'Budget',
       entityId: budget._id,
-      changes: {
-        before: oldData,
-        after: budget.toObject()
-      }
+      changes: { before: oldData, after: budget.toObject() }
     });
 
     res.json({ success: true, data: budget });
@@ -130,19 +134,17 @@ const updateBudget = async (req, res) => {
   }
 };
 
-// Delete budget
 const deleteBudget = async (req, res) => {
   try {
     const budget = await Budget.findByIdAndDelete(req.params.id);
     if (!budget) throw new NotFoundError('Budget not found');
 
-    // Log activity
     await AuditLog.create({
       userId: req.user._id,
       action: 'DELETE_BUDGET',
       entity: 'Budget',
       entityId: req.params.id,
-      changes: { deleted: budget }
+      changes: { deleted: budget.toObject() }
     });
 
     res.json({ success: true, message: 'Budget deleted successfully' });
@@ -151,15 +153,24 @@ const deleteBudget = async (req, res) => {
   }
 };
 
-// Add allocation to budget
 const addAllocation = async (req, res) => {
   try {
-    const { category, amount } = req.body;
+    const { costCenter, description, allocatedAmount, spentAmount = 0, uom } = req.body;
     const budget = await Budget.findById(req.params.id);
 
     if (!budget) throw new NotFoundError('Budget not found');
+    if (!allocatedAmount || allocatedAmount <= 0) {
+      throw new ValidationError('allocatedAmount must be greater than 0');
+    }
 
-    budget.allocations.push({ category, amount });
+    budget.allocations.push({
+      costCenter,
+      description,
+      allocatedAmount,
+      spentAmount,
+      uom
+    });
+
     await budget.save();
 
     res.json({ success: true, data: budget });
@@ -168,14 +179,13 @@ const addAllocation = async (req, res) => {
   }
 };
 
-// Get budget analytics
 const getBudgetAnalytics = async (req, res) => {
   try {
-    const { year } = req.query;
-    const query = year ? { year: parseInt(year) } : {};
+    const { fiscalYear } = req.query;
+    const query = fiscalYear ? { fiscalYear } : {};
 
-    const budgets = await Budget.find(query).populate('createdBy', 'name');
-    
+    const budgets = await Budget.find(query).populate('createdBy', 'username fullName');
+
     const analytics = {
       totalBudgets: budgets.length,
       totalAllocated: budgets.reduce((sum, b) => sum + (b.totalAllocated || 0), 0),
@@ -187,7 +197,6 @@ const getBudgetAnalytics = async (req, res) => {
       allocationByCategory: {}
     };
 
-    // Calculate average utilization
     if (budgets.length > 0) {
       const totalUtilization = budgets.reduce((sum, b) => {
         return sum + (b.totalAllocated > 0 ? (b.totalSpent / b.totalAllocated) * 100 : 0);
@@ -195,37 +204,26 @@ const getBudgetAnalytics = async (req, res) => {
       analytics.averageUtilization = Math.round(totalUtilization / budgets.length);
     }
 
-    // Budgets by department
-    budgets.forEach(budget => {
+    budgets.forEach((budget) => {
       analytics.budgetsByDepartment[budget.department] = (analytics.budgetsByDepartment[budget.department] || 0) + 1;
-    });
-
-    // Budgets by status
-    budgets.forEach(budget => {
       analytics.budgetsByStatus[budget.status] = (analytics.budgetsByStatus[budget.status] || 0) + 1;
+
+      (budget.allocations || []).forEach((alloc) => {
+        const key = alloc.costCenter || 'Unassigned';
+        if (!analytics.allocationByCategory[key]) analytics.allocationByCategory[key] = 0;
+        analytics.allocationByCategory[key] += Number(alloc.allocatedAmount || 0);
+      });
     });
 
-    // Top spenders
-    analytics.topSpenders = budgets
-      .sort((a, b) => b.totalSpent - a.totalSpent)
+    analytics.topSpenders = [...budgets]
+      .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
       .slice(0, 5)
-      .map(b => ({
+      .map((b) => ({
         budgetCode: b.budgetCode,
         spent: b.totalSpent,
         allocated: b.totalAllocated,
         department: b.department
       }));
-
-    // Allocation by costCenter
-    budgets.forEach(budget => {
-      budget.allocations.forEach(alloc => {
-        const key = alloc.costCenter || 'Unassigned';
-        if (!analytics.allocationByCategory[key]) {
-          analytics.allocationByCategory[key] = 0;
-        }
-        analytics.allocationByCategory[key] += alloc.allocatedAmount;
-      });
-    });
 
     res.json({ success: true, data: analytics });
   } catch (error) {
@@ -233,23 +231,25 @@ const getBudgetAnalytics = async (req, res) => {
   }
 };
 
-// Forecast budget utilization
 const forecastBudgetUtilization = async (req, res) => {
   try {
-    const { id, months } = req.body;
-    const budget = await Budget.findById(id);
+    const budgetId = req.params.id || req.body.id;
+    const { months = 12 } = req.body;
+    const budget = await Budget.findById(budgetId);
 
     if (!budget) throw new NotFoundError('Budget not found');
 
-    const monthlySpend = budget.totalSpent / new Date().getMonth();
-    const forecastedUtilization = (monthlySpend * (months || 12)) / budget.totalAllocated;
+    const monthIndex = new Date().getMonth() + 1;
+    const monthlySpend = monthIndex > 0 ? (budget.totalSpent || 0) / monthIndex : 0;
+    const projectedSpend = monthlySpend * Number(months);
+    const forecastedUtilizationRatio = budget.totalAllocated > 0 ? projectedSpend / budget.totalAllocated : 0;
 
     res.json({
       success: true,
       data: {
-        currentUtilization: (budget.totalSpent / budget.totalAllocated) * 100,
-        forecastedUtilization: Math.min(forecastedUtilization * 100, 200),
-        riskLevel: forecastedUtilization > 1 ? 'High' : forecastedUtilization > 0.8 ? 'Medium' : 'Low'
+        currentUtilization: budget.totalAllocated > 0 ? ((budget.totalSpent / budget.totalAllocated) * 100) : 0,
+        forecastedUtilization: Math.min(forecastedUtilizationRatio * 100, 200),
+        riskLevel: forecastedUtilizationRatio > 1 ? 'High' : forecastedUtilizationRatio > 0.8 ? 'Medium' : 'Low'
       }
     });
   } catch (error) {

@@ -19,7 +19,11 @@ import {
   ClipboardDocumentListIcon,
   DocumentTextIcon,
   UserGroupIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  BeakerIcon,
+  CheckCircleIcon,
+  QrCodeIcon,
+  ReceiptPercentIcon
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -35,7 +39,11 @@ import {
   ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
   DocumentTextIcon as DocumentTextIconSolid,
   UserGroupIcon as UserGroupIconSolid,
-  MegaphoneIcon as MegaphoneIconSolid
+  MegaphoneIcon as MegaphoneIconSolid,
+  BeakerIcon as BeakerIconSolid,
+  CheckCircleIcon as CheckCircleIconSolid,
+  QrCodeIcon as QrCodeIconSolid,
+  ReceiptPercentIcon as ReceiptPercentIconSolid
 } from '@heroicons/react/24/solid';
 
 const navigation = [
@@ -53,6 +61,12 @@ const navigation = [
   { name: 'Reports', href: '/reports', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
   { name: 'Finance', href: '/finance', icon: BanknotesIcon, iconSolid: BanknotesIconSolid, permission: 'view_reports' },
+  { name: 'Budget', href: '/budgets', icon: ReceiptPercentIcon, iconSolid: ReceiptPercentIconSolid, permission: 'view_reports' },
+  { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid, permission: 'view_orders' },
+  { name: 'RFQ', href: '/rfq', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, permission: 'view_suppliers' },
+  { name: 'Recipe / BOM', href: '/recipes', icon: BeakerIcon, iconSolid: BeakerIconSolid, permission: 'view_production' },
+  { name: 'Quality Checks', href: '/quality-checks', icon: CheckCircleIcon, iconSolid: CheckCircleIconSolid, permission: 'view_production' },
+  { name: 'Barcode / RFID', href: '/barcode', icon: QrCodeIcon, iconSolid: QrCodeIconSolid, permission: 'view_inventory' },
   { name: 'Audit Trail', href: '/audit', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, permission: 'system_admin', adminOnly: true },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, iconSolid: Cog6ToothIconSolid },
 ];

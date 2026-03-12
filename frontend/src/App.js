@@ -30,6 +30,12 @@ const EmployeeManagement = lazy(() => import('./pages/EmployeeManagement'));
 const DocumentManagement = lazy(() => import('./pages/DocumentManagement'));
 const TextileProduction = lazy(() => import('./pages/TextileProduction'));
 const RoleBasedDashboard = lazy(() => import('./pages/RoleBasedDashboard'));
+const BudgetManagement = lazy(() => import('./pages/BudgetManagement'));
+const InvoiceManagement = lazy(() => import('./pages/InvoiceManagement'));
+const RFQManagement = lazy(() => import('./pages/RFQManagement'));
+const RecipeBOM = lazy(() => import('./pages/RecipeBOM'));
+const QualityChecks = lazy(() => import('./pages/QualityChecks'));
+const BarcodeRFID = lazy(() => import('./pages/BarcodeRFID'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -71,6 +77,12 @@ function App() {
                 <Route path="/leads/*" element={<LeadsManagement />} />
                 <Route path="/employees/*" element={<EmployeeManagement />} />
                 <Route path="/documents/*" element={<DocumentManagement />} />
+                <Route path="/budgets/*" element={<BudgetManagement />} />
+                <Route path="/invoices/*" element={<InvoiceManagement />} />
+                <Route path="/rfq/*" element={<RFQManagement />} />
+                <Route path="/recipes/*" element={<RecipeBOM />} />
+                <Route path="/quality-checks/*" element={<QualityChecks />} />
+                <Route path="/barcode/*" element={<BarcodeRFID />} />
               </Route>
             </Routes>
           </Suspense>

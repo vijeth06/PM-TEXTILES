@@ -1,35 +1,44 @@
 const express = require('express');
 const budgetController = require('../controllers/budgetController');
-const auth = require('../middleware/auth');
-const { validateRequest } = require('../middleware/validation');
+const { protect, authorize } = require('../middleware/auth');
+const { cache, invalidateCacheAfter } = require('../middleware/cache');
 
 const router = express.Router();
 
-// Apply auth middleware to all routes
-router.use(auth);
+router.use(protect);
 
-// Get all budgets
-router.get('/', budgetController.getBudgets);
+router.get('/', cache(300), budgetController.getBudgets);
+router.get('/analytics', cache(300), budgetController.getBudgetAnalytics);
+router.get('/:id', cache(300), budgetController.getBudget);
 
-// Get budget analytics
-router.get('/analytics', budgetController.getBudgetAnalytics);
+router.post(
+  '/',
+  authorize('admin', 'management', 'store_manager'),
+  invalidateCacheAfter(['cache:/api/budgets*', 'cache:/api/budgets/analytics*']),
+  budgetController.createBudget
+);
 
-// Get single budget
-router.get('/:id', budgetController.getBudget);
+router.put(
+  '/:id',
+  authorize('admin', 'management', 'store_manager'),
+  invalidateCacheAfter(['cache:/api/budgets*', 'cache:/api/budgets/analytics*']),
+  budgetController.updateBudget
+);
 
-// Create budget
-router.post('/', budgetController.createBudget);
+router.delete(
+  '/:id',
+  authorize('admin', 'management'),
+  invalidateCacheAfter(['cache:/api/budgets*', 'cache:/api/budgets/analytics*']),
+  budgetController.deleteBudget
+);
 
-// Update budget
-router.put('/:id', budgetController.updateBudget);
+router.post(
+  '/:id/allocations',
+  authorize('admin', 'management', 'store_manager'),
+  invalidateCacheAfter(['cache:/api/budgets*', 'cache:/api/budgets/analytics*']),
+  budgetController.addAllocation
+);
 
-// Delete budget
-router.delete('/:id', budgetController.deleteBudget);
-
-// Add allocation to budget
-router.post('/:id/allocations', budgetController.addAllocation);
-
-// Forecast budget utilization
-router.post('/:id/forecast', budgetController.forecastBudgetUtilization);
+router.post('/:id/forecast', cache(120), budgetController.forecastBudgetUtilization);
 
 module.exports = router;
