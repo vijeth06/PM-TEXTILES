@@ -41,15 +41,48 @@ export default function BarcodeRFID() {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-gray-900">Barcode / RFID Tracking</h1>
-        <p className="mt-2 text-sm text-gray-700">Scan barcodes or QR codes to instantly look up inventory items and batch details</p>
+    <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      {/* Header */}
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">Barcode / RFID Tracking</h1>
+        <p className="mt-1 text-xs sm:text-sm text-gray-700">Scan barcodes or QR codes to instantly look up inventory items and batch details</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Scan Panel */}
-        <div className="lg:col-span-1 space-y-4">
+      {/* Mobile: prominent scan button at the top */}
+      <div className="sm:hidden mb-4">
+        <button
+          onClick={() => setScannerOpen(true)}
+          className="w-full flex items-center justify-center gap-3 rounded-xl bg-indigo-600 px-4 py-5 text-base font-semibold text-white shadow-md active:bg-indigo-700"
+        >
+          <QrCodeIcon className="h-7 w-7" />
+          Tap to Scan Barcode / QR Code
+        </button>
+      </div>
+
+      {/* Mobile: manual entry below scan button */}
+      <div className="sm:hidden mb-4">
+        <form onSubmit={handleManualSearch} className="flex gap-2">
+          <input
+            type="search"
+            inputMode="text"
+            value={manualCode}
+            onChange={e => setManualCode(e.target.value)}
+            placeholder="Or type batch / barcode..."
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 text-white shadow-sm active:bg-indigo-700 disabled:opacity-50"
+          >
+            {loading ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <MagnifyingGlassIcon className="h-5 w-5" />}
+          </button>
+        </form>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Scan Panel — hidden on mobile (already shown above), visible sm+ */}
+        <div className="hidden sm:block lg:col-span-1 space-y-4">
           {/* Camera Scan */}
           <div className="bg-white shadow rounded-lg p-6 text-center">
             <QrCodeIcon className="h-12 w-12 mx-auto text-indigo-500 mb-3" />
@@ -93,7 +126,7 @@ export default function BarcodeRFID() {
                 {history.map((entry, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between text-xs text-gray-600 py-1 border-b last:border-0 cursor-pointer hover:text-indigo-600"
+                    className="flex items-center justify-between text-xs text-gray-600 py-1.5 border-b last:border-0 cursor-pointer hover:text-indigo-600"
                     onClick={() => { setManualCode(entry.code); setResult(entry.item); }}
                   >
                     <span className="font-mono">{entry.code}</span>
@@ -108,20 +141,24 @@ export default function BarcodeRFID() {
         {/* Result Panel */}
         <div className="lg:col-span-2">
           {loading ? (
-            <div className="bg-white shadow rounded-lg p-12 text-center">
+            <div className="bg-white shadow rounded-lg p-8 sm:p-12 text-center">
               <ArrowPathIcon className="h-8 w-8 animate-spin mx-auto text-indigo-500" />
               <p className="mt-2 text-sm text-gray-500">Looking up item...</p>
             </div>
           ) : result ? (
-            <div className="bg-white shadow rounded-lg p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">{result.name || result.itemName || result.batchNumber || 'Item Details'}</h2>
-                <span className={`px-3 py-1 text-sm rounded-full font-medium ${result.quantity <= (result.reorderLevel || 0) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+            <div className="bg-white shadow rounded-lg p-4 sm:p-6 space-y-4">
+              {/* Title + stock badge */}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h2 className="text-base sm:text-xl font-semibold text-gray-900 leading-snug">
+                  {result.name || result.itemName || result.batchNumber || 'Item Details'}
+                </h2>
+                <span className={`shrink-0 px-3 py-1 text-xs sm:text-sm rounded-full font-medium ${result.quantity <= (result.reorderLevel || 0) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                   {result.quantity <= (result.reorderLevel || 0) ? 'Low Stock' : 'In Stock'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              {/* Details grid: 1 col on mobile, 2 on sm+ */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 {[
                   { label: 'Item Code / Batch', value: result.itemCode || result.batchNumber || result.lotNumber || '—' },
                   { label: 'Category / Type', value: result.category || result.type || result.itemType || '—' },
@@ -134,7 +171,7 @@ export default function BarcodeRFID() {
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-gray-50 rounded p-3">
                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-                    <p className="mt-0.5 text-sm font-semibold text-gray-900">{value}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-gray-900 break-words">{value}</p>
                   </div>
                 ))}
               </div>
@@ -146,40 +183,61 @@ export default function BarcodeRFID() {
                 </div>
               )}
 
-              {/* Movement history if present */}
+              {/* Movements table — scrollable on mobile */}
               {result.movements && result.movements.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Recent Movements</h4>
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="text-left p-2 border text-xs">Date</th>
-                        <th className="text-left p-2 border text-xs">Type</th>
-                        <th className="text-right p-2 border text-xs">Quantity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.movements.slice(0, 5).map((m, i) => (
-                        <tr key={i} className="border-b">
-                          <td className="p-2 border text-xs">{new Date(m.date || m.timestamp).toLocaleDateString()}</td>
-                          <td className="p-2 border text-xs capitalize">{m.type}</td>
-                          <td className={`p-2 border text-xs text-right font-medium ${m.type === 'issue' ? 'text-red-600' : 'text-green-600'}`}>{m.type === 'issue' ? '-' : '+'}{m.quantity}</td>
+                  <div className="overflow-x-auto -mx-1">
+                    <table className="min-w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="text-left p-2 border text-xs whitespace-nowrap">Date</th>
+                          <th className="text-left p-2 border text-xs whitespace-nowrap">Type</th>
+                          <th className="text-right p-2 border text-xs whitespace-nowrap">Quantity</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {result.movements.slice(0, 5).map((m, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="p-2 border text-xs whitespace-nowrap">{new Date(m.date || m.timestamp).toLocaleDateString()}</td>
+                            <td className="p-2 border text-xs capitalize">{m.type}</td>
+                            <td className={`p-2 border text-xs text-right font-medium ${m.type === 'issue' ? 'text-red-600' : 'text-green-600'}`}>{m.type === 'issue' ? '-' : '+'}{m.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="bg-white shadow rounded-lg p-12 text-center text-gray-400">
-              <QrCodeIcon className="h-16 w-16 mx-auto mb-4 opacity-30" />
-              <p className="text-base font-medium">No item scanned yet</p>
-              <p className="text-sm mt-1">Use the camera scanner or enter a barcode/batch code manually</p>
+            <div className="bg-white shadow rounded-lg p-8 sm:p-12 text-center text-gray-400">
+              <QrCodeIcon className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 opacity-30" />
+              <p className="text-sm sm:text-base font-medium">No item scanned yet</p>
+              <p className="text-xs sm:text-sm mt-1">Use the camera scanner or enter a barcode/batch code</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Mobile: recent scan history at the bottom */}
+      {history.length > 0 && (
+        <div className="sm:hidden mt-4 bg-white shadow rounded-lg p-4">
+          <h3 className="text-sm font-medium text-gray-900 mb-2">Recent Scans</h3>
+          <ul className="divide-y divide-gray-100">
+            {history.map((entry, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between py-2.5 cursor-pointer active:bg-gray-50"
+                onClick={() => { setManualCode(entry.code); setResult(entry.item); }}
+              >
+                <span className="font-mono text-xs text-gray-700">{entry.code}</span>
+                <span className="text-xs text-gray-400">{entry.timestamp.toLocaleTimeString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Camera Scanner Modal */}
       {scannerOpen && (
