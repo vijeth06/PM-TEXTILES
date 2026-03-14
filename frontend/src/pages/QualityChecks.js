@@ -36,9 +36,7 @@ export default function QualityChecks() {
   const [activeTab, setActiveTab] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [stats, setStats] = useState(null);
-
-  useEffect(() => { fetchChecks(); fetchStats(); }, []);
+  useEffect(() => { fetchChecks(); }, []);
 
   const fetchChecks = async () => {
     try {
@@ -52,13 +50,6 @@ export default function QualityChecks() {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const res = await qualityAPI.getStatistics();
-      setStats(res.data.data || null);
-    } catch { /* silent */ }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -66,7 +57,6 @@ export default function QualityChecks() {
       toast.success('Quality check recorded');
       setShowModal(false);
       fetchChecks();
-      fetchStats();
     } catch {
       toast.error('Failed to save quality check');
     }
@@ -78,12 +68,12 @@ export default function QualityChecks() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center mb-6">
-        <div className="sm:flex-auto">
-          <h1 className="text-3xl font-semibold text-gray-900">Quality Checks</h1>
-          <p className="mt-2 text-sm text-gray-700">Track quality inspections across dyeing, printing, finishing & final product stages</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">Quality Checks</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-700">Track quality inspections across dyeing, printing, finishing & final product stages</p>
         </div>
-        <button onClick={() => { setFormData(EMPTY_FORM); setShowModal(true); }} className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <button onClick={() => { setFormData(EMPTY_FORM); setShowModal(true); }} className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 active:bg-indigo-700">
           <PlusIcon className="h-5 w-5" />
           New Check
         </button>
@@ -126,7 +116,7 @@ export default function QualityChecks() {
       </div>
 
       {/* Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white shadow rounded-lg">
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -137,6 +127,7 @@ export default function QualityChecks() {
             <p>No quality checks found for this stage.</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -167,6 +158,7 @@ export default function QualityChecks() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -178,10 +170,10 @@ export default function QualityChecks() {
             <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">New Quality Check</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Stage *</label>
-                    <select value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    <select value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm">
                       {STAGE_OPTIONS.map(s => <option key={s} value={s} className="capitalize">{s.replace('_', ' ')}</option>)}
                     </select>
                   </div>

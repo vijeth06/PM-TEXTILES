@@ -117,10 +117,10 @@ export default function RFQManagement() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center mb-6">
-        <div className="sm:flex-auto">
-          <h1 className="text-3xl font-semibold text-gray-900">RFQ Management</h1>
-          <p className="mt-2 text-sm text-gray-700">Request for Quotations — create, send and evaluate supplier quotes</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">RFQ Management</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-700">Request for Quotations — create, send and evaluate supplier quotes</p>
         </div>
         <button
           onClick={openCreate}
@@ -147,7 +147,7 @@ export default function RFQManagement() {
       </div>
 
       {/* Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white shadow rounded-lg">
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -155,6 +155,7 @@ export default function RFQManagement() {
         ) : rfqs.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No RFQs found. Create one to get started.</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -204,6 +205,7 @@ export default function RFQManagement() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -215,14 +217,14 @@ export default function RFQManagement() {
             <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{selectedRFQ ? 'Edit RFQ' : 'New RFQ'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Title *</label>
                     <input
                       value={formData.title}
                       onChange={e => setFormData({ ...formData, title: e.target.value })}
                       required
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm"
                     />
                   </div>
                   <div>

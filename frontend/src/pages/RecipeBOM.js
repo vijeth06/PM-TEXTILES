@@ -172,20 +172,20 @@ export default function RecipeBOM() {
             <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{selected ? 'Edit Recipe' : 'New Recipe'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Name *</label>
-                    <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+                    <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Recipe Code *</label>
-                    <input value={formData.recipeCode} onChange={e => setFormData({ ...formData, recipeCode: e.target.value.toUpperCase() })} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+                    <input value={formData.recipeCode} onChange={e => setFormData({ ...formData, recipeCode: e.target.value.toUpperCase() })} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Type *</label>
-                    <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm">
                       <option value="dyeing">Dyeing</option>
                       <option value="printing">Printing</option>
                       <option value="weaving">Weaving</option>
@@ -194,16 +194,16 @@ export default function RecipeBOM() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Fabric Type</label>
-                    <input value={formData.fabricType} onChange={e => setFormData({ ...formData, fabricType: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+                    <input value={formData.fabricType} onChange={e => setFormData({ ...formData, fabricType: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Version</label>
-                    <input value={formData.version} onChange={e => setFormData({ ...formData, version: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+                    <input value={formData.version} onChange={e => setFormData({ ...formData, version: e.target.value })} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={2} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+                  <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={2} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm" />
                 </div>
                 {/* Ingredients */}
                 <div>
@@ -223,7 +223,7 @@ export default function RecipeBOM() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Notes</label>
-                  <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
+                  <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm" />
                 </div>
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>

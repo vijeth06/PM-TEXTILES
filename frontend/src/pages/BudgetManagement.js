@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td } from '../components/common';
+import { Card, CardHeader, CardBody, Badge, Table, Thead, Tbody, Th, Td } from '../components/common';
 
 const budgetsAPI = {
   getBudgets: (params) => api.get('/budgets', { params }),
@@ -78,22 +78,16 @@ export default function BudgetManagement() {
     }
   };
 
-  const getUtilizationColor = (utilization) => {
-    if (utilization >= 100) return 'bg-red-100 text-red-800';
-    if (utilization >= 80) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-green-100 text-green-800';
-  };
-
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-3xl font-semibold text-gray-900">Budget Management</h1>
-          <p className="mt-2 text-sm text-gray-700">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">Budget Management</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-700">
             Create and manage annual budgets by department with real-time tracking
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+        <div>
           <button
             type="button"
             onClick={() => {
@@ -119,7 +113,7 @@ export default function BudgetManagement() {
             <div className="ml-5 w-0 flex-1">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Allocated</dt>
               <dd className="text-2xl font-semibold text-gray-900">
-                ₹{budgets.reduce((sum, b) => sum + (b.totalAllocated || 0), 0) / 100000}L
+                ₹{(budgets.reduce((sum, b) => sum + (b.totalAllocated || 0), 0) / 100000).toFixed(2)}L
               </dd>
             </div>
           </div>
@@ -132,7 +126,7 @@ export default function BudgetManagement() {
             <div className="ml-5 w-0 flex-1">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Spent</dt>
               <dd className="text-2xl font-semibold text-gray-900">
-                ₹{budgets.reduce((sum, b) => sum + (b.totalSpent || 0), 0) / 100000}L
+                ₹{(budgets.reduce((sum, b) => sum + (b.totalSpent || 0), 0) / 100000).toFixed(2)}L
               </dd>
             </div>
           </div>

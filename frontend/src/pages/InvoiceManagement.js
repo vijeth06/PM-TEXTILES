@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ordersAPI } from '../services/api';
 import { ArrowDownTrayIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td } from '../components/common';
-import { exportToPDF, exportToExcel } from '../utils/exportUtils';
+import { Card, CardHeader, CardBody, Badge, Table, Thead, Tbody, Th, Td } from '../components/common';
+import { exportToPDF } from '../utils/exportUtils';
 
 export default function InvoiceManagement() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: 'all', invoiceStatus: 'all' });
-  const [selectedOrder, setSelectedOrder] = useState(null);
-
   useEffect(() => {
     fetchOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const fetchOrders = async () => {
@@ -95,7 +94,7 @@ export default function InvoiceManagement() {
       </div>
 
       {/* Filters */}
-      <div className="mt-8 bg-white p-4 rounded-lg shadow flex items-center space-x-4">
+      <div className="mt-6 bg-white p-4 rounded-lg shadow flex flex-wrap items-center gap-3">
         <div>
           <label className="text-sm font-medium text-gray-700 mr-2">Order Status:</label>
           <select
