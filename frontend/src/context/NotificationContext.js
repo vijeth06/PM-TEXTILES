@@ -106,9 +106,23 @@ export const NotificationProvider = ({ children }) => {
 
     // Named handlers so they can be removed on cleanup
     const handleNewNotification = (data) => {
-      setNotifications(prev => [data, ...prev]);
-      setUnreadCount(prev => prev + 1);
-      toast(`New notification: ${data.title}`);
+      if (!data?._id) {
+        return;
+      }
+
+      let isDuplicate = false;
+      setNotifications((prev) => {
+        isDuplicate = prev.some((notif) => notif._id === data._id);
+        if (isDuplicate) {
+          return prev;
+        }
+        return [data, ...prev];
+      });
+
+      if (!isDuplicate) {
+        setUnreadCount((prev) => prev + 1);
+        toast(`New notification: ${data.title}`, { id: `notif-${data._id}` });
+      }
     };
 
     const handleNotificationUpdated = (data) => {

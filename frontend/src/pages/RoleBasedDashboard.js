@@ -46,25 +46,40 @@ export default function RoleBasedDashboard() {
 
       const metrics = metricsRes.status === 'fulfilled' ? metricsRes.value.data.data : {};
       const trends = trendsRes.status === 'fulfilled' ? trendsRes.value.data.data : {};
-      const dist = orderDistRes.status === 'fulfilled' ? orderDistRes.value.data : [];
+      const dist = orderDistRes.status === 'fulfilled' ? (orderDistRes.value.data?.data || []) : [];
       const orders = ordersRes.status === 'fulfilled' ? ordersRes.value.data : {};
       const alerts = inventoryRes.status === 'fulfilled' ? inventoryRes.value.data.data : [];
       const orderRows = Array.isArray(orders.data) ? orders.data : [];
       const alertRows = Array.isArray(alerts) ? alerts : [];
       
       // Process revenue by order value range
-      const revenueByRange = { 'Below 50K': 0, '50K-100K': 0, '100K-500K': 0, 'Above 500K': 0 };
+      const revenueByRange = {
+        'Below 50K': { value: 0, orders: 0 },
+        '50K-100K': { value: 0, orders: 0 },
+        '100K-500K': { value: 0, orders: 0 },
+        'Above 500K': { value: 0, orders: 0 }
+      };
       if (orderRows.length > 0) {
         orderRows.forEach(order => {
-          const value = Number(order.totalAmount || order.orderValue || 0);
-          if (value < 50000) revenueByRange['Below 50K']++;
-          else if (value < 100000) revenueByRange['50K-100K']++;
-          else if (value < 500000) revenueByRange['100K-500K']++;
-          else revenueByRange['Above 500K']++;
+          const value = Number(order.totalValue || order.totalAmount || order.orderValue || 0);
+          if (value < 50000) {
+            revenueByRange['Below 50K'].value += value;
+            revenueByRange['Below 50K'].orders += 1;
+          } else if (value < 100000) {
+            revenueByRange['50K-100K'].value += value;
+            revenueByRange['50K-100K'].orders += 1;
+          } else if (value < 500000) {
+            revenueByRange['100K-500K'].value += value;
+            revenueByRange['100K-500K'].orders += 1;
+          } else {
+            revenueByRange['Above 500K'].value += value;
+            revenueByRange['Above 500K'].orders += 1;
+          }
         });
       }
       const revenueDistData = Object.entries(revenueByRange)
-        .map(([name, count]) => ({ name, value: count }));
+        .map(([name, bucket]) => ({ name, value: bucket.value, orders: bucket.orders }))
+        .filter((row) => row.value > 0);
       setPaymentDist(revenueDistData);
       const machineMetrics = metrics.machines || {};
       const totalMachines = Number(machineMetrics.total || 0);
@@ -109,20 +124,45 @@ export default function RoleBasedDashboard() {
         }
       });
 
-      if (trends.production) {
-        setTrendData(trends.production.map(t => ({
-          date: t._id,
-          production: t.totalOutput || 0,
-          target: metrics.production?.targetQuantity || 0
-        })));
+      if (Array.isArray(trends.productionTrend) && trends.productionTrend.length > 0) {
+        const trendMap = new Map(
+          trends.productionTrend.map((t) => [t._id, { production: t.completed || 0, target: t.planned || 0 }])
+        );
+
+        const series = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const key = d.toISOString().split('T')[0];
+          const row = trendMap.get(key) || { production: 0, target: 0 };
+          series.push({
+            date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+            production: row.production,
+            target: row.target
+          });
+        }
+        setTrendData(series);
+      } else {
+        const fallbackSeries = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          fallbackSeries.push({
+            date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+            production: 0,
+            target: 0
+          });
+        }
+        setTrendData(fallbackSeries);
       }
 
-      if (dist.length > 0) {
-        setOrderDist(dist.map(d => ({ 
-          name: d.status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'unknown', 
-          value: d.count 
-        })));
-      }
+      const normalizedOrderDist = dist
+        .map((d) => ({
+          name: d.status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown',
+          value: Number(d.count || 0)
+        }))
+        .filter((row) => row.value > 0);
+      setOrderDist(normalizedOrderDist);
     } catch (error) {
       console.error('Dashboard data fetch error:', error);
       setRecentOrders([]);
@@ -179,7 +219,7 @@ export default function RoleBasedDashboard() {
         <Card variant="elevated" className="p-6">
           <SectionHeader title="Production Trend" subtitle="Last 7 Days" />
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={trendData.length > 0 ? trendData : [{date: 'No data', production: 0, target: 0}]}>
+            <AreaChart data={trendData}>
               <defs>
                 <linearGradient id="colorProduction" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8}/>
@@ -189,7 +229,7 @@ export default function RoleBasedDashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value, name) => [value, name === 'production' ? 'Actual' : 'Target']} />
               <Legend />
               <Area type="monotone" dataKey="production" stroke="#0ea5e9" fillOpacity={1} fill="url(#colorProduction)" name="Actual" />
               <Line type="monotone" dataKey="target" stroke="#ef4444" strokeDasharray="5 5" name="Target" />
@@ -221,10 +261,9 @@ export default function RoleBasedDashboard() {
                 <PieChart>
                   <Pie
                     data={loomData}
-                    cx="50%"
+                    cx="40%"
                     cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={false}
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"
@@ -233,7 +272,8 @@ export default function RoleBasedDashboard() {
                       <Cell key={`cell-${index}`} fill={color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [value, 'Machines']} />
+                  <Legend layout="vertical" verticalAlign="middle" align="right" />
                 </PieChart>
               </ResponsiveContainer>
             );
@@ -243,58 +283,80 @@ export default function RoleBasedDashboard() {
         {/* Order Distribution */}
         <Card variant="elevated" className="p-6">
           <SectionHeader title="Order Distribution" />
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={orderDist.length > 0 ? orderDist : [
-                  {name: 'Pending', value: stats.orders.pending},
-                  {name: 'In Production', value: stats.orders.inProduction},
-                  {name: 'Completed', value: stats.orders.completed}
-                ]}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {COLORS.map((color, index) => (
-                  <Cell key={`cell-${index}`} fill={color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {(() => {
+            const orderData = orderDist.length > 0
+              ? orderDist
+              : [
+                  { name: 'Pending', value: Number(stats.orders.pending || 0) },
+                  { name: 'In Production', value: Number(stats.orders.inProduction || 0) },
+                  { name: 'Completed', value: Number(stats.orders.completed || 0) }
+                ].filter((row) => row.value > 0);
+
+            if (!orderData.length) {
+              return (
+                <div className="h-[300px] rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+                  <p className="text-sm text-slate-500">No order distribution data available yet.</p>
+                </div>
+              );
+            }
+
+            return (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={orderData}
+                    cx="40%"
+                    cy="50%"
+                    label={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {COLORS.slice(0, orderData.length).map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [value, 'Orders']} />
+                  <Legend layout="vertical" verticalAlign="middle" align="right" />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </Card>
 
         {/* Revenue by Order Value Distribution */}
         <Card variant="elevated" className="p-6">
           <SectionHeader title="Revenue by Order Value" />
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={paymentDist.length > 0 ? paymentDist : [
-                  {name: 'Below 50K', value: 0},
-                  {name: '50K-100K', value: 0},
-                  {name: '100K-500K', value: 0},
-                  {name: 'Above 500K', value: 0}
-                ]}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {[COLORS[1], COLORS[3], COLORS[5], COLORS[0]].map((color, index) => (
-                  <Cell key={`cell-${index}`} fill={color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {paymentDist.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={paymentDist}
+                  cx="40%"
+                  cy="50%"
+                  label={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {[COLORS[1], COLORS[3], COLORS[5], COLORS[0]].slice(0, paymentDist.length).map((color, index) => (
+                    <Cell key={`cell-${index}`} fill={color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, _name, item) => {
+                    const orderCount = item?.payload?.orders || 0;
+                    return [`Rs ${Number(value || 0).toLocaleString()} (${orderCount} orders)`, 'Revenue'];
+                  }}
+                />
+                <Legend layout="vertical" verticalAlign="middle" align="right" />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+              <p className="text-sm text-slate-500">No revenue distribution data available yet.</p>
+            </div>
+          )}
         </Card>
       </div>
 
