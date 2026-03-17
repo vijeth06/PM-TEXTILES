@@ -134,15 +134,15 @@ export const quotationsAPI = {
 
 // Documents API
 export const documentsAPI = {
-  getDocuments: (params) => api.get('/documents', { params }),
-  getDocument: (id) => api.get(`/documents/${id}`),
-  uploadDocument: (formData) => api.post('/documents', formData, {
+  getDocuments: (params) => api.get('/hr/documents', { params }),
+  getDocument: (id) => api.get(`/hr/documents/${id}`),
+  uploadDocument: (formData) => api.post('/hr/documents', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  updateDocument: (id, data) => api.put(`/documents/${id}`, data),
-  searchDocuments: (params) => api.get('/documents/search', { params }),
-  approveDocument: (id, approvalId, data) => api.put(`/documents/${id}/approval/${approvalId}`, data),
-  deleteDocument: (id) => api.delete(`/documents/${id}`)
+  updateDocument: (id, data) => api.put(`/hr/documents/${id}`, data),
+  searchDocuments: (params) => api.get('/hr/documents/search', { params }),
+  approveDocument: (id, approvalId, data) => api.put(`/hr/documents/${id}/approval/${approvalId}`, data),
+  deleteDocument: (id) => api.delete(`/hr/documents/${id}`)
 };
 
 export default api;

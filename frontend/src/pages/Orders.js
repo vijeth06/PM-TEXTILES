@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useOrderUpdates } from '../hooks/useRealTimeUpdates';
 import { PlusIcon, TruckIcon, EyeIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { Card, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Pagination } from '../components/common';
+import PageShell from '../components/PageShell';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -114,17 +115,24 @@ const Orders = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-blue-800">Order Management</h1>
-          <p className="text-gray-600 mt-2 font-medium">Track customer orders and manage dispatch logistics</p>
-        </div>
+    <PageShell
+      title="Order Management"
+      description="Track customer orders, monitor priorities, and manage dispatch readiness from one table."
+      badge="Supply Chain"
+      actions={(
         <Button onClick={handleCreateOrder} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition-all">
           <PlusIcon className="h-5 w-5 mr-2" />
           New Order
         </Button>
-      </div>
+      )}
+      stats={[
+        { label: 'Orders In View', value: String(orders.length), helper: 'Current page count' },
+        { label: 'Pending', value: String(orders.filter((o) => o.status === 'pending').length), helper: 'Awaiting confirmation' },
+        { label: 'In Production', value: String(orders.filter((o) => o.status === 'in_production').length), helper: 'Being manufactured' },
+        { label: 'Page', value: `${pagination.currentPage}/${pagination.totalPages}`, helper: 'Paginated order list' }
+      ]}
+    >
+      <div className="space-y-6">
 
       {/* Filters */}
       <Card>
@@ -318,7 +326,8 @@ const Orders = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };
 

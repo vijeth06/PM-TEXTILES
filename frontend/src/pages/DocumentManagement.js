@@ -7,6 +7,7 @@ import {
   FolderIcon,
   CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
+import PageShell from '../components/PageShell';
 
 export default function DocumentManagement() {
   const [documents, setDocuments] = useState([]);
@@ -110,25 +111,28 @@ export default function DocumentManagement() {
   };
 
   return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="sm:flex sm:items-center">
-          <div className="sm:flex-auto">
-            <h1 className="text-3xl font-semibold text-gray-900">Document Management System</h1>
-            <p className="mt-2 text-sm text-gray-700">
-              Centralized document repository with version control, access management, and approval workflows.
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <button
-              onClick={handleUploadDocument}
-              type="button"
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
-            >
-              <CloudArrowUpIcon className="h-5 w-5 mr-2" />
-              Upload Document
-            </button>
-          </div>
-        </div>
+      <PageShell
+        title="Document Management System"
+        description="Centralized document repository with versioning, approval status tracking, and searchable metadata."
+        badge="Business Ops"
+        actions={(
+          <button
+            onClick={handleUploadDocument}
+            type="button"
+            className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
+          >
+            <CloudArrowUpIcon className="h-5 w-5 mr-2" />
+            Upload Document
+          </button>
+        )}
+        stats={[
+          { label: 'Total Documents', value: String(documents.length), helper: 'Filtered result count' },
+          { label: 'Approved', value: String(documents.filter((d) => d.status === 'approved').length), helper: 'Ready and active' },
+          { label: 'Pending Approval', value: String(documents.filter((d) => d.status === 'pending_approval').length), helper: 'Awaiting review' },
+          { label: 'Archived', value: String(documents.filter((d) => d.status === 'archived').length), helper: 'Stored history' }
+        ]}
+      >
+        <div className="space-y-6">
 
         {/* Search and Filters */}
         <div className="mt-8 bg-white p-4 rounded-lg shadow">
@@ -170,60 +174,6 @@ export default function DocumentManagement() {
                   <option key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</option>
                 ))}
               </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Document Stats */}
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <DocumentTextIcon className="h-8 w-8 text-blue-600" />
-                <div className="ml-3">
-                  <div className="text-sm font-medium text-gray-500">Total Documents</div>
-                  <div className="text-2xl font-semibold text-gray-900">{documents.length}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <FolderIcon className="h-8 w-8 text-green-600" />
-                <div className="ml-3">
-                  <div className="text-sm font-medium text-gray-500">Approved</div>
-                  <div className="text-2xl font-semibold text-green-600">
-                    {documents.filter(d => d.status === 'approved').length}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <FolderIcon className="h-8 w-8 text-yellow-600" />
-                <div className="ml-3">
-                  <div className="text-sm font-medium text-gray-500">Pending Approval</div>
-                  <div className="text-2xl font-semibold text-yellow-600">
-                    {documents.filter(d => d.status === 'pending_approval').length}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <FolderIcon className="h-8 w-8 text-gray-600" />
-                <div className="ml-3">
-                  <div className="text-sm font-medium text-gray-500">Archived</div>
-                  <div className="text-2xl font-semibold text-gray-600">
-                    {documents.filter(d => d.status === 'archived').length}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -285,6 +235,7 @@ export default function DocumentManagement() {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      </PageShell>
   );
 }

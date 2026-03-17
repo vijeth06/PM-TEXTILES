@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
       // Connect WebSocket
       socketService.connect(token);
       
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       return {
         success: false,

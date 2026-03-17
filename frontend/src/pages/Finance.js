@@ -9,6 +9,7 @@ import {
   Card, CardHeader, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, 
   Modal, Input, Select, Textarea, LoadingSpinner 
 } from '../components/common';
+import PageShell from '../components/PageShell';
 
 const Finance = () => {
   const [activeTab, setActiveTab] = useState('invoices');
@@ -21,11 +22,16 @@ const Finance = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Financial Management</h1>
-        <p className="text-gray-600 mt-1">Manage invoices, payments, and financial reports</p>
-      </div>
+    <PageShell
+      title="Financial Management"
+      description="Manage invoices, customer payments, purchase orders, and financial summaries in one workspace."
+      badge="Business Ops"
+      stats={[
+        { label: 'Modules', value: String(tabs.length), helper: 'Invoices, Payments, Purchases, Reports' },
+        { label: 'Active Tab', value: tabs.find((t) => t.id === activeTab)?.name || 'Invoices', helper: 'Current working area' }
+      ]}
+    >
+      <div className="space-y-6">
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
@@ -55,7 +61,8 @@ const Finance = () => {
         {activeTab === 'purchases' && <PurchaseOrdersTab />}
         {activeTab === 'reports' && <FinancialReportsTab />}
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 };
 

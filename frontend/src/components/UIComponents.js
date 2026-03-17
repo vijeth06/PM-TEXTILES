@@ -5,14 +5,14 @@ import React from 'react';
  */
 export const Card = ({ children, className = '', variant = 'default', hover = true }) => {
   const variants = {
-    default: 'bg-white rounded-lg border border-gray-200 shadow-sm',
-    elevated: 'bg-white rounded-lg border border-gray-200 shadow-md',
-    glass: 'bg-white rounded-lg border border-gray-200 shadow-sm',
-    gradient: 'bg-white rounded-lg border border-gray-200 shadow-sm',
+    default: 'panel-elevated rounded-2xl',
+    elevated: 'panel-elevated rounded-2xl',
+    glass: 'panel-elevated rounded-2xl backdrop-blur-sm',
+    gradient: 'rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-cyan-50 shadow-sm',
   };
 
   return (
-    <div className={`${variants[variant]} ${hover ? 'hover:shadow-md transition-shadow duration-200' : ''} ${className}`}>
+    <div className={`${variants[variant]} ${hover ? 'hover:shadow-lg transition-all duration-200' : ''} ${className}`}>
       {children}
     </div>
   );
@@ -169,12 +169,12 @@ export const StatCard = ({
   const tone = colorMap[color] || colorMap.blue;
 
   return (
-    <Card className={`${tone.bg} border ${tone.border} p-6 ${className}`}>
-      <div>
-        <p className={`text-sm font-medium ${tone.text} opacity-80`}>{title}</p>
+    <Card className={`${tone.bg} border ${tone.border} p-5 sm:p-6 relative overflow-hidden ${className}`}>
+      <div className="pr-10">
+        <p className={`text-xs font-semibold uppercase tracking-wide ${tone.text} opacity-75`}>{title}</p>
         <div className="mt-2 flex items-baseline space-x-2">
-          <span className={`text-3xl font-bold ${tone.text}`}>{value}</span>
-          {unit && <span className={`text-sm ${tone.text} opacity-75`}>{unit}</span>}
+          <span className={`text-3xl font-extrabold tracking-tight ${tone.text}`}>{value}</span>
+          {unit && <span className={`text-sm font-medium ${tone.text} opacity-70`}>{unit}</span>}
         </div>
         
         {change !== undefined && (
@@ -191,8 +191,8 @@ export const StatCard = ({
         )}
       </div>
       {Icon && (
-        <div className="absolute right-4 top-4">
-          <Icon className={`h-6 w-6 ${tone.icon} opacity-80`} />
+        <div className="absolute right-4 top-4 rounded-lg bg-white/80 border border-white p-1.5">
+          <Icon className={`h-5 w-5 ${tone.icon}`} />
         </div>
       )}
     </Card>
@@ -204,16 +204,16 @@ export const StatCard = ({
  */
 export const SectionHeader = ({ title, subtitle, action, icon: Icon }) => {
   return (
-    <div className="mb-6 flex items-center justify-between">
+    <div className="mb-5 flex items-start justify-between gap-3">
       <div>
         <div className="flex items-center space-x-3">
           {Icon && (
-            <div className="p-2 bg-blue-100 rounded-lg border border-blue-200">
-              <Icon className="h-6 w-6 text-blue-700" />
+            <div className="p-2 bg-sky-100 rounded-xl border border-sky-200">
+              <Icon className="h-5 w-5 text-sky-700" />
             </div>
           )}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-gray-900">{title}</h2>
             {subtitle && <p className="text-gray-600 text-sm mt-0.5">{subtitle}</p>}
           </div>
         </div>

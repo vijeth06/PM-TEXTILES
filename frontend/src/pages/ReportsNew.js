@@ -5,6 +5,7 @@ import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardBody, Button, Select, LoadingSpinner, Table, Thead, Tbody, Th, Td, Badge } from '../components/common';
 import DateRangePicker from '../components/DateRangePicker';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
+import PageShell from '../components/PageShell';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -275,11 +276,17 @@ const ReportsNew = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-        <p className="text-gray-600 mt-1">Generate comprehensive business reports with visualizations</p>
-      </div>
+    <PageShell
+      title="Reports & Analytics"
+      description="Generate operational reports with date filters, chart views, and one-click export to PDF/Excel."
+      badge="Insights"
+      stats={[
+        { label: 'Report Types', value: String(reports.length), helper: 'Production, inventory, orders, machine, profit' },
+        { label: 'Selected', value: reports.find((r) => r.id === selectedReport)?.name || 'None', helper: 'Choose and generate' },
+        { label: 'Date Window', value: `${dateRange.startDate} to ${dateRange.endDate}`, helper: 'Current filter range' }
+      ]}
+    >
+      <div className="space-y-6">
 
       {/* Report Selection */}
       <Card>
@@ -348,7 +355,8 @@ const ReportsNew = () => {
           {selectedReport === 'profit' && <ProfitReport data={reportData} />}
         </>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };
 

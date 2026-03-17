@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getDefaultRouteForRole } from '../utils/roleRouting';
 import toast from 'react-hot-toast';
 import { 
   UserIcon, 
@@ -74,7 +75,7 @@ const Login = () => {
         icon: '👋',
         duration: 3000,
       });
-      navigate('/dashboard');
+      navigate(getDefaultRouteForRole(result.user?.role));
     } else {
       if (result.requireTwoFactor) {
         setRequiresTwoFactor(true);
@@ -91,10 +92,16 @@ const Login = () => {
       <div className="max-w-md w-full relative z-10">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-700 rounded-xl shadow-md mb-4 border border-blue-800">
-            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 5a1 1 0 011-1h2.914l.614-1.843a.5.5 0 01.972 0l.614 1.843h2.914a1 1 0 010 2h-8zm0 4a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5z" />
-            </svg>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#0b1f5e] via-[#123a9a] to-[#2563eb] rounded-xl shadow-md mb-4 border border-blue-800">
+            <div className="inline-flex w-8 h-8 items-center justify-center rounded-md border border-white/35 bg-white/10 overflow-hidden">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="none" aria-hidden="true">
+                <rect x="4.5" y="4.5" width="15" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.6" opacity="0.95" />
+                <path d="M8 6.2V17.8M12 6.2V17.8M16 6.2V17.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
+                <path d="M6.2 8H17.8M6.2 12H17.8M6.2 16H17.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
+                <path d="M7 14.6L17 10.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity="0.95" />
+                <circle cx="17.8" cy="9.8" r="1.3" fill="currentColor" opacity="0.9" />
+              </svg>
+            </div>
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">PM Textiles</h1>
           <p className="text-gray-600 font-medium">Enterprise Resource Planning System</p>

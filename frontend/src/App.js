@@ -1,11 +1,12 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { getDefaultRouteForRole } from './utils/roleRouting';
 
 // Components
-import Layout from './components/Layout';
+import LayoutV2 from './components/LayoutV2';
 import PrivateRoute from './components/PrivateRoute';
 
 // Eager-loaded critical pages
@@ -47,7 +48,48 @@ const PageLoader = () => (
   </div>
 );
 
+const RoleHomeRedirect = () => {
+  const { user } = useAuth();
+  return <Navigate to={getDefaultRouteForRole(user?.role)} replace />;
+};
+
 function App() {
+  const protectedRoutes = [
+    { path: '/', element: <RoleHomeRedirect /> },
+    { path: '/dashboard', element: <RoleBasedDashboard /> },
+    { path: '/dashboard-enhanced', element: <EnhancedDashboard /> },
+    { path: '/dashboard-old', element: <DashboardNew /> },
+    { path: '/production/*', element: <Production /> },
+    { path: '/production-execution/*', element: <ProductionExecution /> },
+    { path: '/textile-production/*', element: <TextileProduction /> },
+    { path: '/inventory/*', element: <Inventory /> },
+    { path: '/orders/*', element: <Orders /> },
+    { path: '/customers/*', element: <Customers /> },
+    { path: '/suppliers/*', element: <Suppliers /> },
+    { path: '/reports/*', element: <ReportsNew /> },
+    { path: '/finance/*', element: <Finance /> },
+    { path: '/settings/*', element: <Settings /> },
+    { path: '/audit/*', element: <AuditTrail /> },
+    { path: '/analytics/*', element: <Analytics /> },
+    { path: '/leads/*', element: <LeadsManagement /> },
+    { path: '/employees/*', element: <EmployeeManagement /> },
+    { path: '/documents/*', element: <DocumentManagement /> },
+    { path: '/budgets/*', element: <BudgetManagement /> },
+    { path: '/invoices/*', element: <InvoiceManagement /> },
+    { path: '/rfq/*', element: <RFQManagement /> },
+    { path: '/recipes/*', element: <RecipeBOM /> },
+    { path: '/quality-checks/*', element: <QualityChecks /> },
+    { path: '/barcode/*', element: <BarcodeRFID /> },
+    // Friendly aliases for direct access and old bookmarks.
+    { path: '/document-management', element: <Navigate to="/documents" replace /> },
+    { path: '/employee-management', element: <Navigate to="/employees" replace /> },
+    { path: '/lead-management', element: <Navigate to="/leads" replace /> },
+    { path: '/budget', element: <Navigate to="/budgets" replace /> },
+    { path: '/barcode-rfid', element: <Navigate to="/barcode" replace /> },
+    { path: '/audit-trail', element: <Navigate to="/audit" replace /> },
+    { path: '*', element: <Navigate to="/dashboard" replace /> }
+  ];
+
   return (
     <AuthProvider>
       <NotificationProvider>
@@ -57,32 +99,10 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               
-              <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<RoleBasedDashboard />} />
-                <Route path="/dashboard-enhanced" element={<EnhancedDashboard />} />
-                <Route path="/dashboard-old" element={<DashboardNew />} />
-                <Route path="/production/*" element={<Production />} />
-                <Route path="/production-execution/*" element={<ProductionExecution />} />
-                <Route path="/textile-production/*" element={<TextileProduction />} />
-                <Route path="/inventory/*" element={<Inventory />} />
-                <Route path="/orders/*" element={<Orders />} />
-                <Route path="/customers/*" element={<Customers />} />
-                <Route path="/suppliers/*" element={<Suppliers />} />
-                <Route path="/reports/*" element={<ReportsNew />} />
-                <Route path="/finance/*" element={<Finance />} />
-                <Route path="/settings/*" element={<Settings />} />
-                <Route path="/audit/*" element={<AuditTrail />} />
-                <Route path="/analytics/*" element={<Analytics />} />
-                <Route path="/leads/*" element={<LeadsManagement />} />
-                <Route path="/employees/*" element={<EmployeeManagement />} />
-                <Route path="/documents/*" element={<DocumentManagement />} />
-                <Route path="/budgets/*" element={<BudgetManagement />} />
-                <Route path="/invoices/*" element={<InvoiceManagement />} />
-                <Route path="/rfq/*" element={<RFQManagement />} />
-                <Route path="/recipes/*" element={<RecipeBOM />} />
-                <Route path="/quality-checks/*" element={<QualityChecks />} />
-                <Route path="/barcode/*" element={<BarcodeRFID />} />
+              <Route element={<PrivateRoute><LayoutV2 /></PrivateRoute>}>
+                {protectedRoutes.map((route) => (
+                  <Route key={route.path} path={route.path} element={route.element} />
+                ))}
               </Route>
             </Routes>
           </Suspense>

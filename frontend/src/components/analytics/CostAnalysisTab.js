@@ -37,6 +37,16 @@ export default function CostAnalysisTab() {
     }).format(value);
   };
 
+  const breakdownData = Array.isArray(costBreakdown?.breakdown)
+    ? costBreakdown.breakdown
+    : Object.entries(costBreakdown?.breakdown || {}).map(([category, amount]) => ({
+        category,
+        amount: Number(amount) || 0,
+        percentage: Number(costBreakdown?.percentages?.[category]) || 0
+      }));
+
+  const totalCost = costBreakdown?.totalCost || costBreakdown?.total || 0;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -76,7 +86,7 @@ export default function CostAnalysisTab() {
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Total Cost</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(costBreakdown.totalCost || 0)}
+                    {formatCurrency(totalCost)}
                   </p>
                 </div>
               </div>
@@ -86,15 +96,15 @@ export default function CostAnalysisTab() {
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
-                        data={costBreakdown.breakdown || []}
+                        data={breakdownData}
                         dataKey="amount"
                         nameKey="category"
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
-                        label={(entry) => `${entry.percentage.toFixed(1)}%`}
+                        label={(entry) => `${(Number(entry.percentage) || 0).toFixed(1)}%`}
                       >
-                        {(costBreakdown.breakdown || []).map((entry, index) => (
+                        {breakdownData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
@@ -105,7 +115,7 @@ export default function CostAnalysisTab() {
                 </div>
 
                 <div className="space-y-3">
-                  {(costBreakdown.breakdown || []).map((item, idx) => (
+                  {breakdownData.map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
                         <div
@@ -120,7 +130,7 @@ export default function CostAnalysisTab() {
                         <p className="text-sm font-semibold text-gray-900">
                           {formatCurrency(item.amount)}
                         </p>
-                        <p className="text-xs text-gray-500">{item.percentage?.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-500">{(Number(item.percentage) || 0).toFixed(1)}%</p>
                       </div>
                     </div>
                   ))}

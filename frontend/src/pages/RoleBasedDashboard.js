@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { dashboardAPI, ordersAPI, inventoryAPI } from '../services/api';
 import { StatCard, SectionHeader, Card } from '../components/UIComponents';
+import PageShell from '../components/PageShell';
 import {
   ChartBarIcon,
   CogIcon,
@@ -25,6 +26,9 @@ export default function RoleBasedDashboard() {
   const [loading, setLoading] = useState(true);
   const [trendData, setTrendData] = useState([]);
   const [orderDist, setOrderDist] = useState([]);
+  const [paymentDist, setPaymentDist] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [inventoryAlerts, setInventoryAlerts] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -36,15 +40,40 @@ export default function RoleBasedDashboard() {
         dashboardAPI.getMetrics(),
         dashboardAPI.getTrends({ period: 'weekly' }),
         dashboardAPI.getOrderStatusDistribution(),
-        ordersAPI.getOrders({ limit: 5 }),
+        ordersAPI.getOrders({ limit: 100 }),
         inventoryAPI.getAlerts()
       ]);
 
       const metrics = metricsRes.status === 'fulfilled' ? metricsRes.value.data.data : {};
       const trends = trendsRes.status === 'fulfilled' ? trendsRes.value.data.data : {};
-      const dist = orderDistRes.status === 'fulfilled' ? orderDistRes.value.data.data : [];
+      const dist = orderDistRes.status === 'fulfilled' ? orderDistRes.value.data : [];
       const orders = ordersRes.status === 'fulfilled' ? ordersRes.value.data : {};
       const alerts = inventoryRes.status === 'fulfilled' ? inventoryRes.value.data.data : [];
+      const orderRows = Array.isArray(orders.data) ? orders.data : [];
+      const alertRows = Array.isArray(alerts) ? alerts : [];
+      
+      // Process revenue by order value range
+      const revenueByRange = { 'Below 50K': 0, '50K-100K': 0, '100K-500K': 0, 'Above 500K': 0 };
+      if (orderRows.length > 0) {
+        orderRows.forEach(order => {
+          const value = Number(order.totalAmount || order.orderValue || 0);
+          if (value < 50000) revenueByRange['Below 50K']++;
+          else if (value < 100000) revenueByRange['50K-100K']++;
+          else if (value < 500000) revenueByRange['100K-500K']++;
+          else revenueByRange['Above 500K']++;
+        });
+      }
+      const revenueDistData = Object.entries(revenueByRange)
+        .map(([name, count]) => ({ name, value: count }));
+      setPaymentDist(revenueDistData);
+      const machineMetrics = metrics.machines || {};
+      const totalMachines = Number(machineMetrics.total || 0);
+      const operationalMachines = Number(machineMetrics.running ?? machineMetrics.operational ?? 0);
+      const maintenanceMachines = Number(machineMetrics.breakdown ?? machineMetrics.underMaintenance ?? 0);
+      const idleMachines = Math.max(totalMachines - operationalMachines - maintenanceMachines, 0);
+
+      setRecentOrders(orderRows.slice(0, 5));
+      setInventoryAlerts(alertRows.slice(0, 5));
 
       setStats({
         production: {
@@ -53,7 +82,12 @@ export default function RoleBasedDashboard() {
           efficiency: metrics.production?.avgEfficiency || 0,
           activePlans: metrics.production?.activePlans || 0,
           completedPlans: metrics.production?.completedPlans || 0,
-          looms: { total: metrics.machines?.total || 0, running: metrics.machines?.running || 0, idle: metrics.machines?.idle || 0, breakdown: metrics.machines?.breakdown || 0 }
+          looms: {
+            total: totalMachines,
+            running: operationalMachines,
+            idle: idleMachines,
+            breakdown: maintenanceMachines
+          }
         },
         quality: {
           firstQuality: metrics.quality?.passRate || 0,
@@ -64,14 +98,14 @@ export default function RoleBasedDashboard() {
         inventory: {
           yarnStock: metrics.inventory?.yarnStock || 0,
           fabricStock: metrics.inventory?.fabricStock || 0,
-          alerts: alerts.length || 0,
+          alerts: alertRows.length || 0,
           totalValue: metrics.inventory?.totalValue || 0
         },
         orders: {
-          pending: orders.data?.filter(o => o.status === 'pending').length || 0,
-          total: orders.total || 0,
-          inProduction: orders.data?.filter(o => o.status === 'in_production').length || 0,
-          completed: orders.data?.filter(o => o.status === 'delivered').length || 0
+          pending: orderRows.filter(o => o.status === 'pending').length || 0,
+          total: orders.total || orderRows.length || 0,
+          inProduction: orderRows.filter(o => o.status === 'in_production').length || 0,
+          completed: orderRows.filter(o => o.status === 'delivered').length || 0
         }
       });
 
@@ -84,10 +118,16 @@ export default function RoleBasedDashboard() {
       }
 
       if (dist.length > 0) {
-        setOrderDist(dist.map(d => ({ name: d._id?.replace(/_/g, ' ') || 'unknown', value: d.count })));
+        setOrderDist(dist.map(d => ({ 
+          name: d.status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'unknown', 
+          value: d.count 
+        })));
       }
     } catch (error) {
       console.error('Dashboard data fetch error:', error);
+      setRecentOrders([]);
+      setInventoryAlerts([]);
+      setPaymentDist([]);
       setStats({
         production: { today: 0, target: 0, efficiency: 0, activePlans: 0, completedPlans: 0, looms: { total: 0, running: 0, idle: 0, breakdown: 0 } },
         quality: { firstQuality: 0, defectRate: 0, inspected: 0, pendingTests: 0 },
@@ -160,29 +200,44 @@ export default function RoleBasedDashboard() {
         {/* Loom Status */}
         <Card variant="elevated" className="p-6">
           <SectionHeader title="Loom Status" />
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={[
-                  {name: 'Running', value: stats.production.looms.running},
-                  {name: 'Idle', value: stats.production.looms.idle},
-                  {name: 'Breakdown', value: stats.production.looms.breakdown}
-                ]}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {[COLORS[2], COLORS[1], COLORS[3]].map((color, index) => (
-                  <Cell key={`cell-${index}`} fill={color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {(() => {
+            const loomData = [
+              { name: 'Running', value: Number(stats.production.looms.running || 0) },
+              { name: 'Idle', value: Number(stats.production.looms.idle || 0) },
+              { name: 'Breakdown', value: Number(stats.production.looms.breakdown || 0) }
+            ];
+            const hasData = loomData.some((item) => item.value > 0);
+
+            if (!hasData) {
+              return (
+                <div className="h-[300px] rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+                  <p className="text-sm text-slate-500">No machine status data available yet.</p>
+                </div>
+              );
+            }
+
+            return (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={loomData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {[COLORS[2], COLORS[1], COLORS[3]].map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </Card>
 
         {/* Order Distribution */}
@@ -205,6 +260,35 @@ export default function RoleBasedDashboard() {
                 dataKey="value"
               >
                 {COLORS.map((color, index) => (
+                  <Cell key={`cell-${index}`} fill={color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Revenue by Order Value Distribution */}
+        <Card variant="elevated" className="p-6">
+          <SectionHeader title="Revenue by Order Value" />
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={paymentDist.length > 0 ? paymentDist : [
+                  {name: 'Below 50K', value: 0},
+                  {name: '50K-100K', value: 0},
+                  {name: '100K-500K', value: 0},
+                  {name: 'Above 500K', value: 0}
+                ]}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {[COLORS[1], COLORS[3], COLORS[5], COLORS[0]].map((color, index) => (
                   <Cell key={`cell-${index}`} fill={color} />
                 ))}
               </Pie>
@@ -355,23 +439,100 @@ export default function RoleBasedDashboard() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-blue-800">
-            Welcome, {user?.name || 'User'}
-          </h1>
-          <p className="mt-2 text-lg text-gray-600 font-medium">
-            <span className="text-blue-700 font-bold capitalize">{user?.role?.replace(/_/g, ' ')}</span> Dashboard
-          </p>
+    <PageShell
+      title={`Welcome, ${user?.name || 'User'}`}
+      description="Your role-aware operations dashboard with production, quality, inventory, and order intelligence."
+      badge={`${(user?.role || 'user').replace(/_/g, ' ')} dashboard`}
+      actions={[
+        <button
+          key="reports"
+          onClick={() => navigate('/reports')}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <DocumentTextIcon className="h-4 w-4" />
+          Reports
+        </button>,
+        <button
+          key="analytics"
+          onClick={() => navigate('/analytics')}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <ChartBarIcon className="h-4 w-4" />
+          Analytics
+        </button>,
+        <button
+          key="refresh"
+          onClick={fetchDashboardData}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+        >
+          <RocketLaunchIcon className="h-4 w-4" />
+          Refresh
+        </button>
+      ]}
+      stats={[
+        { label: 'Today Production', value: `${Math.round(stats?.production?.today || 0)} m`, helper: 'Output registered today' },
+        { label: 'Loom Efficiency', value: `${Math.round(stats?.production?.efficiency || 0)}%`, helper: 'Average machine utilization' },
+        { label: 'Pending Orders', value: String(stats?.orders?.pending || 0), helper: 'Awaiting fulfillment' },
+        { label: 'Inventory Alerts', value: String(stats?.inventory?.alerts || 0), helper: 'Low stock notifications' }
+      ]}
+    >
+      <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Production Pulse</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">Track real-time output, efficiency, and active plans.</p>
         </div>
-
-        {/* Role-based dashboard content */}
-        {user?.role === 'production_manager' && renderProductionManagerDashboard()}
-        {user?.role === 'qa_inspector' && renderQualityInspectorDashboard()}
-        {user?.role === 'store_manager' && renderStoreManagerDashboard()}
-        {(user?.role === 'admin' || user?.role === 'management' || user?.role === 'sales_manager' || user?.role === 'accountant' || !['production_manager', 'qa_inspector', 'store_manager'].includes(user?.role)) && renderProductionManagerDashboard()}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Quality Control</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">Monitor first-pass quality and pending inspections.</p>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Inventory Watch</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">Stay ahead of low stock alerts and reorder points.</p>
+        </div>
       </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Card variant="elevated" className="p-5">
+          <SectionHeader title="Recent Orders" subtitle="Latest order flow snapshot" />
+          <div className="space-y-2">
+            {recentOrders.length > 0 ? recentOrders.map((order, idx) => (
+              <div key={order._id || idx} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{order.orderNumber || order.soNumber || `Order ${idx + 1}`}</p>
+                  <p className="text-xs text-slate-600">{order.customerName || order.customer?.name || 'Customer pending'}</p>
+                </div>
+                <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                  {(order.status || 'pending').replace(/_/g, ' ')}
+                </span>
+              </div>
+            )) : (
+              <p className="text-sm text-slate-500">No recent orders available.</p>
+            )}
+          </div>
+        </Card>
+
+        <Card variant="elevated" className="p-5">
+          <SectionHeader title="Inventory Alerts" subtitle="Items requiring immediate attention" />
+          <div className="space-y-2">
+            {inventoryAlerts.length > 0 ? inventoryAlerts.map((alert, idx) => (
+              <div key={alert._id || idx} className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
+                <p className="text-sm font-semibold text-slate-900">{alert.itemName || alert.materialName || alert.name || `Alert ${idx + 1}`}</p>
+                <p className="text-xs text-slate-700">
+                  Current: {alert.currentStock ?? alert.current ?? 'N/A'} | Reorder: {alert.reorderPoint ?? alert.reorderLevel ?? 'N/A'}
+                </p>
+              </div>
+            )) : (
+              <p className="text-sm text-slate-500">No active inventory alerts.</p>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {user?.role === 'production_manager' && renderProductionManagerDashboard()}
+      {user?.role === 'qa_inspector' && renderQualityInspectorDashboard()}
+      {user?.role === 'store_manager' && renderStoreManagerDashboard()}
+      {(user?.role === 'admin' || user?.role === 'management' || user?.role === 'sales_manager' || user?.role === 'accountant' || !['production_manager', 'qa_inspector', 'store_manager'].includes(user?.role)) && renderProductionManagerDashboard()}
+    </PageShell>
     );
   }
 
@@ -381,14 +542,14 @@ function QuickActionButton({ icon: Icon, label, color, onClick }) {
     teal: 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200',
     amber: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200',
     green: 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200',
-    purple: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200',
+    purple: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200',
     red: 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
   };
 
   return (
-    <button onClick={onClick} className={`${colorClasses[color]} p-4 rounded-lg transition-all hover:shadow-sm flex flex-col items-center justify-center space-y-2`}>
-      <Icon className="h-8 w-8" />
-      <span className="text-sm font-semibold">{label}</span>
+    <button onClick={onClick} className={`${colorClasses[color]} p-4 rounded-xl transition-all hover:shadow-md hover:-translate-y-0.5 flex flex-col items-center justify-center space-y-2`}>
+      <Icon className="h-7 w-7" />
+      <span className="text-sm font-bold tracking-tight text-center">{label}</span>
     </button>
   );
 }

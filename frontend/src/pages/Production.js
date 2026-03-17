@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useProductionUpdates } from '../hooks/useRealTimeUpdates';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Card, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Input, Select, LoadingSpinner, EmptyState, Pagination } from '../components/common';
+import PageShell from '../components/PageShell';
 
 const Production = () => {
   const [plans, setPlans] = useState([]);
@@ -106,17 +107,24 @@ const Production = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-blue-800">Production Management</h1>
-          <p className="text-gray-600 mt-2 font-medium">Plan and track manufacturing stages in real-time</p>
-        </div>
-        <Button onClick={handleCreatePlan} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition-all">
+    <PageShell
+      title="Production Management"
+      description="Plan, schedule, and monitor production plans and stage progress in a single view."
+      badge="Operations"
+      actions={(
+        <Button onClick={handleCreatePlan} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg shadow-lg transition-all">
           <PlusIcon className="h-5 w-5 mr-2" />
           New Production Plan
         </Button>
-      </div>
+      )}
+      stats={[
+        { label: 'Visible Plans', value: String(plans.length), helper: 'Current page result count' },
+        { label: 'In Progress', value: String(plans.filter((p) => p.status === 'in_progress').length), helper: 'Active execution plans' },
+        { label: 'Completed', value: String(plans.filter((p) => p.status === 'completed').length), helper: 'Finished plans in view' },
+        { label: 'Page', value: `${pagination.currentPage}/${pagination.totalPages}`, helper: 'Paginated listing' }
+      ]}
+    >
+      <div className="space-y-6">
 
       {/* Filters */}
       <Card>
@@ -286,7 +294,8 @@ const Production = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };
 

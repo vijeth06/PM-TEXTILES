@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { dashboardAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { 
@@ -7,40 +8,33 @@ import {
   ArrowPathIcon, EyeIcon
 } from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardBody, Button, Badge, LoadingSpinner } from '../components/common';
+import PageShell from '../components/PageShell';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 
+const PERIOD_TO_API = {
+  today: 'daily',
+  week: '7days',
+  month: '30days'
+};
+
 const DashboardNew = () => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [selectedPeriod] = useState('today');
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
   const [productionTrendData, setProductionTrendData] = useState([]);
   const [inventoryTrendData, setInventoryTrendData] = useState([]);
 
-  useEffect(() => {
-    fetchMetrics();
-    
-    let interval;
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        fetchMetrics();
-      }, 30000); // Refresh every 30 seconds
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [autoRefresh]);
-
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async (period = selectedPeriod) => {
     try {
       setLoading(true);
       const [metricsRes, trendsRes, inventoryTrendRes] = await Promise.all([
         dashboardAPI.getMetrics(),
-        dashboardAPI.getTrends({ period: '7days' }),
+        dashboardAPI.getTrends({ period: PERIOD_TO_API[period] || 'daily' }),
         dashboardAPI.getInventoryValueTrend({ months: 7 })
       ]);
       setMetrics(metricsRes.data.data);
@@ -63,7 +57,22 @@ const DashboardNew = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchMetrics(selectedPeriod);
+
+    let interval;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        fetchMetrics(selectedPeriod);
+      }, 30000); // Refresh every 30 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh, selectedPeriod, fetchMetrics]);
 
   if (loading && !metrics) {
     return (
@@ -106,13 +115,11 @@ const DashboardNew = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Real-time overview of your operations</p>
-        </div>
+    <PageShell
+      title="Operations Dashboard"
+      description="Unified real-time visibility across production, inventory, orders, machines, and wastage metrics."
+      badge="Control Center"
+      actions={(
         <div className="flex items-center space-x-3">
           <label className="flex items-center space-x-2 text-sm">
             <input
@@ -123,12 +130,20 @@ const DashboardNew = () => {
             />
             <span className="text-gray-700">Auto Refresh (30s)</span>
           </label>
-          <Button onClick={fetchMetrics} variant="outline" className="flex items-center">
+          <Button onClick={() => fetchMetrics(selectedPeriod)} variant="outline" className="flex items-center">
             <ArrowPathIcon className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
-      </div>
+      )}
+      stats={[
+        { label: 'Active Plans', value: String(metrics?.production?.activePlans || 0), helper: 'Live production plans' },
+        { label: 'Low Stock Alerts', value: String(metrics?.inventory?.lowStockItems || 0), helper: 'Needs replenishment' },
+        { label: 'Pending Orders', value: String(metrics?.orders?.pending || 0), helper: 'Open customer commitments' },
+        { label: 'Operational Machines', value: `${metrics?.machines?.operational || 0}/${metrics?.machines?.total || 0}`, helper: 'Current uptime status' }
+      ]}
+    >
+    <div className="space-y-6">
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -171,18 +186,18 @@ const DashboardNew = () => {
       </div>
 
       {/* Production Trend */}
-      <Card>
+      <Card className="panel-elevated rounded-2xl border border-slate-200">
         <CardHeader>
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">Production Trend (This Week)</h3>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm" className={selectedPeriod === 'today' ? 'bg-blue-50' : ''}>
+              <Button variant="outline" size="sm" onClick={() => setSelectedPeriod('today')} className={selectedPeriod === 'today' ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}>
                 Today
               </Button>
-              <Button variant="outline" size="sm" className={selectedPeriod === 'week' ? 'bg-blue-50' : ''}>
+              <Button variant="outline" size="sm" onClick={() => setSelectedPeriod('week')} className={selectedPeriod === 'week' ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}>
                 Week
               </Button>
-              <Button variant="outline" size="sm" className={selectedPeriod === 'month' ? 'bg-blue-50' : ''}>
+              <Button variant="outline" size="sm" onClick={() => setSelectedPeriod('month')} className={selectedPeriod === 'month' ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}>
                 Month
               </Button>
             </div>
@@ -212,7 +227,7 @@ const DashboardNew = () => {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Production Status */}
-        <Card>
+        <Card className="panel-elevated rounded-2xl border border-slate-200">
           <CardHeader>
             <h3 className="text-lg font-semibold text-gray-900">Production Status</h3>
           </CardHeader>
@@ -248,7 +263,7 @@ const DashboardNew = () => {
         </Card>
 
         {/* Order Distribution */}
-        <Card>
+        <Card className="panel-elevated rounded-2xl border border-slate-200">
           <CardHeader>
             <h3 className="text-lg font-semibold text-gray-900">Order Distribution</h3>
           </CardHeader>
@@ -270,7 +285,7 @@ const DashboardNew = () => {
         </Card>
 
         {/* Machine Status */}
-        <Card>
+        <Card className="panel-elevated rounded-2xl border border-slate-200">
           <CardHeader>
             <h3 className="text-lg font-semibold text-gray-900">Machine Status</h3>
           </CardHeader>
@@ -298,7 +313,7 @@ const DashboardNew = () => {
       </div>
 
       {/* Inventory Value Trend */}
-      <Card>
+      <Card className="panel-elevated rounded-2xl border border-slate-200">
         <CardHeader>
           <h3 className="text-lg font-semibold text-gray-900">Inventory Value Trend (₹K)</h3>
         </CardHeader>
@@ -317,7 +332,7 @@ const DashboardNew = () => {
       </Card>
 
       {/* Wastage Analysis */}
-      <Card>
+      <Card className="panel-elevated rounded-2xl border border-slate-200">
         <CardHeader>
           <h3 className="text-lg font-semibold text-gray-900">Wastage Summary</h3>
         </CardHeader>
@@ -360,11 +375,11 @@ const DashboardNew = () => {
       {/* Recent Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Orders */}
-        <Card>
+        <Card className="panel-elevated rounded-2xl border border-slate-200">
           <CardHeader>
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
-              <Button variant="outline" size="sm" className="flex items-center">
+              <Button variant="outline" size="sm" className="flex items-center" onClick={() => navigate('/orders')}>
                 <EyeIcon className="h-4 w-4 mr-1" />
                 View All
               </Button>
@@ -401,11 +416,11 @@ const DashboardNew = () => {
         </Card>
 
         {/* Recent Production */}
-        <Card>
+        <Card className="panel-elevated rounded-2xl border border-slate-200">
           <CardHeader>
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Recent Production Plans</h3>
-              <Button variant="outline" size="sm" className="flex items-center">
+              <Button variant="outline" size="sm" className="flex items-center" onClick={() => navigate('/production')}>
                 <EyeIcon className="h-4 w-4 mr-1" />
                 View All
               </Button>
@@ -444,11 +459,12 @@ const DashboardNew = () => {
         </Card>
       </div>
     </div>
+    </PageShell>
   );
 };
 
 const StatsCard = ({ icon: Icon, title, value, subtitle, trend, iconColor, bgColor }) => (
-  <Card className="hover:shadow-lg transition-shadow">
+  <Card className="panel-elevated rounded-2xl border border-slate-200 hover:shadow-lg transition-shadow">
     <CardBody>
       <div className="flex items-center justify-between">
         <div>

@@ -10,6 +10,7 @@ import ForecastsTab from '../components/analytics/ForecastsTab';
 import KPIsTab from '../components/analytics/KPIsTab';
 import CostAnalysisTab from '../components/analytics/CostAnalysisTab';
 import ProfitabilityTab from '../components/analytics/ProfitabilityTab';
+import PageShell from '../components/PageShell';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -26,17 +27,16 @@ export default function Analytics() {
   ];
 
   return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="sm:flex sm:items-center">
-          <div className="sm:flex-auto">
-            <h1 className="text-3xl font-semibold text-gray-900">Analytics & Business Intelligence</h1>
-            <p className="mt-2 text-sm text-gray-700">
-              Advanced analytics, forecasting, KPIs, and cost analysis for data-driven decision making.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-8">
+      <PageShell
+        title="Analytics & Business Intelligence"
+        description="Forecasts, KPI intelligence, cost trends, and profitability insights in one workspace."
+        badge="Decision Center"
+        stats={[
+          { label: 'Modules', value: tabs.length.toString(), helper: 'Forecasts, KPIs, Cost, Profitability' },
+          { label: 'Active Tab', value: tabs[selectedTab]?.name || 'Forecasts', helper: 'Switch instantly using the tab row' }
+        ]}
+      >
+        <div>
           <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
             <Tab.List className="flex space-x-1 rounded-xl bg-blue-900/20 p-1">
               {tabs.map((tab) => (
@@ -74,6 +74,6 @@ export default function Analytics() {
             </Tab.Panels>
           </Tab.Group>
         </div>
-      </div>
+      </PageShell>
   );
 }

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import CommandPalette from './CommandPalette';
 import {
   HomeIcon,
   CubeIcon,
@@ -16,6 +17,7 @@ import {
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
+  Squares2X2Icon,
   ClipboardDocumentListIcon,
   DocumentTextIcon,
   UserGroupIcon,
@@ -23,235 +25,371 @@ import {
   BeakerIcon,
   CheckCircleIcon,
   QrCodeIcon,
-  ReceiptPercentIcon
+  ReceiptPercentIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  MagnifyingGlassIcon,
+  CommandLineIcon
 } from '@heroicons/react/24/outline';
-import {
-  HomeIcon as HomeIconSolid,
-  CubeIcon as CubeIconSolid,
-  PlayIcon as PlayIconSolid,
-  ArchiveBoxIcon as ArchiveBoxIconSolid,
-  ShoppingCartIcon as ShoppingCartIconSolid,
-  UsersIcon as UsersIconSolid,
-  TruckIcon as TruckIconSolid,
-  ChartBarIcon as ChartBarIconSolid,
-  BanknotesIcon as BanknotesIconSolid,
-  Cog6ToothIcon as Cog6ToothIconSolid,
-  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
-  DocumentTextIcon as DocumentTextIconSolid,
-  UserGroupIcon as UserGroupIconSolid,
-  MegaphoneIcon as MegaphoneIconSolid,
-  BeakerIcon as BeakerIconSolid,
-  CheckCircleIcon as CheckCircleIconSolid,
-  QrCodeIcon as QrCodeIconSolid,
-  ReceiptPercentIcon as ReceiptPercentIconSolid
-} from '@heroicons/react/24/solid';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
-  { name: 'Textile Production', href: '/textile-production', icon: CubeIcon, iconSolid: CubeIconSolid },
-  { name: 'Production', href: '/production', icon: CubeIcon, iconSolid: CubeIconSolid, permission: 'view_production' },
-  { name: 'Production Execution', href: '/production-execution', icon: PlayIcon, iconSolid: PlayIconSolid, permission: 'manage_production' },
-  { name: 'Inventory', href: '/inventory', icon: ArchiveBoxIcon, iconSolid: ArchiveBoxIconSolid, permission: 'view_inventory' },
-  { name: 'Orders', href: '/orders', icon: ShoppingCartIcon, iconSolid: ShoppingCartIconSolid, permission: 'view_orders' },
-  { name: 'Customers', href: '/customers', icon: UsersIcon, iconSolid: UsersIconSolid, permission: 'view_customers' },
-  { name: 'Suppliers', href: '/suppliers', icon: TruckIcon, iconSolid: TruckIconSolid, permission: 'view_suppliers' },
-  { name: 'Leads / CRM', href: '/leads', icon: MegaphoneIcon, iconSolid: MegaphoneIconSolid, permission: 'view_customers' },
-  { name: 'Employees', href: '/employees', icon: UserGroupIcon, iconSolid: UserGroupIconSolid, permission: 'manage_users' },
-  { name: 'Documents', href: '/documents', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
-  { name: 'Reports', href: '/reports', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
-  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, iconSolid: ChartBarIconSolid, permission: 'view_reports' },
-  { name: 'Finance', href: '/finance', icon: BanknotesIcon, iconSolid: BanknotesIconSolid, permission: 'view_reports' },
-  { name: 'Budget', href: '/budgets', icon: ReceiptPercentIcon, iconSolid: ReceiptPercentIconSolid, permission: 'view_reports' },
-  { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid, permission: 'view_orders' },
-  { name: 'RFQ', href: '/rfq', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, permission: 'view_suppliers' },
-  { name: 'Recipe / BOM', href: '/recipes', icon: BeakerIcon, iconSolid: BeakerIconSolid, permission: 'view_production' },
-  { name: 'Quality Checks', href: '/quality-checks', icon: CheckCircleIcon, iconSolid: CheckCircleIconSolid, permission: 'view_production' },
-  { name: 'Barcode / RFID', href: '/barcode', icon: QrCodeIcon, iconSolid: QrCodeIconSolid, permission: 'view_inventory' },
-  { name: 'Audit Trail', href: '/audit', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, permission: 'system_admin', adminOnly: true },
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, iconSolid: Cog6ToothIconSolid },
+const navigationSections = [
+  {
+    title: 'Overview',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, keywords: ['home', 'overview', 'kpi'] },
+      { name: 'Enhanced Dashboard', href: '/dashboard-enhanced', icon: HomeIcon, keywords: ['advanced dashboard', 'enhanced'] },
+      { name: 'Classic Dashboard', href: '/dashboard-old', icon: HomeIcon, keywords: ['legacy dashboard', 'classic'] },
+      { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, permission: 'view_reports', keywords: ['trends', 'forecast', 'cost'] },
+      { name: 'Reports', href: '/reports', icon: ChartBarIcon, permission: 'view_reports', keywords: ['summary', 'exports'] }
+    ]
+  },
+  {
+    title: 'Operations',
+    items: [
+      { name: 'Textile Production', href: '/textile-production', icon: CubeIcon, keywords: ['loom', 'dyeing', 'fabric'] },
+      { name: 'Production', href: '/production', icon: CubeIcon, permission: 'view_production', keywords: ['plan', 'batch'] },
+      { name: 'Production Execution', href: '/production-execution', icon: PlayIcon, permission: 'manage_production', keywords: ['shopfloor', 'schedule'] },
+      { name: 'Recipe / BOM', href: '/recipes', icon: BeakerIcon, permission: 'view_production', keywords: ['formula', 'bom', 'recipe'] },
+      { name: 'Quality Checks', href: '/quality-checks', icon: CheckCircleIcon, permission: 'view_production', keywords: ['inspection', 'quality'] },
+      { name: 'Barcode / RFID', href: '/barcode', icon: QrCodeIcon, permission: 'view_inventory', keywords: ['scan', 'tracking'] }
+    ]
+  },
+  {
+    title: 'Supply Chain',
+    items: [
+      { name: 'Inventory', href: '/inventory', icon: ArchiveBoxIcon, permission: 'view_inventory', keywords: ['stock', 'warehouse'] },
+      { name: 'Orders', href: '/orders', icon: ShoppingCartIcon, permission: 'view_orders', keywords: ['sales order', 'dispatch'] },
+      { name: 'RFQ', href: '/rfq', icon: ClipboardDocumentListIcon, permission: 'view_suppliers', keywords: ['procurement', 'purchase'] },
+      { name: 'Suppliers', href: '/suppliers', icon: TruckIcon, permission: 'view_suppliers', keywords: ['vendors'] },
+      { name: 'Customers', href: '/customers', icon: UsersIcon, permission: 'view_customers', keywords: ['buyers'] }
+    ]
+  },
+  {
+    title: 'Business Ops',
+    items: [
+      { name: 'Leads / CRM', href: '/leads', icon: MegaphoneIcon, permission: 'view_customers', keywords: ['crm', 'pipeline'] },
+      { name: 'Employees', href: '/employees', icon: UserGroupIcon, permission: 'manage_users', keywords: ['hr', 'team'] },
+      { name: 'Documents', href: '/documents', icon: DocumentTextIcon, keywords: ['dms', 'files', 'approval'] },
+      { name: 'Finance', href: '/finance', icon: BanknotesIcon, permission: 'view_reports', keywords: ['payment', 'cost'] },
+      { name: 'Budget', href: '/budgets', icon: ReceiptPercentIcon, permission: 'view_reports', keywords: ['budgeting', 'planning'] },
+      { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, permission: 'view_orders', keywords: ['billing'] }
+    ]
+  },
+  {
+    title: 'Admin',
+    items: [
+      { name: 'Audit Trail', href: '/audit', icon: ClipboardDocumentListIcon, permission: 'system_admin', adminOnly: true, keywords: ['logs', 'compliance'] },
+      { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, keywords: ['preferences', 'config'] }
+    ]
+  }
 ];
 
+const PRIMARY_NAV_ORDER = ['/dashboard', '/production', '/inventory', '/orders', '/analytics'];
+
 const Layout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [moduleMenuOpen, setModuleMenuOpen] = useState(false);
+  const [appsSearchTerm, setAppsSearchTerm] = useState('');
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({});
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, hasPermission } = useAuth();
+
+  const filteredSections = useMemo(
+    () => navigationSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => {
+          if (item.adminOnly && user?.role !== 'admin') return false;
+          return !item.permission || hasPermission(item.permission);
+        })
+      }))
+      .filter((section) => section.items.length > 0),
+    [user?.role, hasPermission]
+  );
+
+  const quickAccessItems = useMemo(
+    () => filteredSections.flatMap((section) => section.items.map((item) => ({ ...item, section: section.title }))),
+    [filteredSections]
+  );
+
+  const topNavItems = useMemo(() => {
+    return PRIMARY_NAV_ORDER
+      .map((href) => quickAccessItems.find((item) => item.href === href))
+      .filter(Boolean);
+  }, [quickAccessItems]);
+
+  const topNavPaths = useMemo(() => new Set(topNavItems.map((item) => item.href)), [topNavItems]);
+
+  const moreSections = useMemo(
+    () => filteredSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !topNavPaths.has(item.href))
+      }))
+      .filter((section) => section.items.length > 0),
+    [filteredSections, topNavPaths]
+  );
+
+  const appsSearchResults = useMemo(() => {
+    const term = appsSearchTerm.trim().toLowerCase();
+    if (!term) return quickAccessItems.slice(0, 8);
+    return quickAccessItems
+      .filter((item) =>
+        item.name.toLowerCase().includes(term) ||
+        (item.keywords || []).some((keyword) => keyword.toLowerCase().includes(term))
+      )
+      .slice(0, 8);
+  }, [quickAccessItems, appsSearchTerm]);
+
+  const isActiveRoute = (href) => location.pathname === href || location.pathname.startsWith(href + '/');
+
+  const handleQuickNavigate = (href) => {
+    navigate(href);
+    setAppsSearchTerm('');
+    setMobileNavOpen(false);
+    setModuleMenuOpen(false);
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const filteredNavigation = navigation.filter(
-    item => {
-      if (item.adminOnly && user?.role !== 'admin') return false;
-      return !item.permission || hasPermission(item.permission);
-    }
-  );
+  const toggleSection = (title) => {
+    setExpandedSections((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event) => {
+      const isK = event.key.toLowerCase() === 'k';
+      if ((event.ctrlKey || event.metaKey) && isK) {
+        event.preventDefault();
+        setIsCommandPaletteOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  useEffect(() => {
+    setModuleMenuOpen(false);
+    setAppsSearchTerm('');
+  }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" onClick={() => setSidebarOpen(false)}></div>
-          <div className="fixed inset-y-0 left-0 flex flex-col w-72 bg-white shadow-2xl">
-            <div className="flex items-center justify-between h-16 px-6 bg-blue-800 border-b border-blue-900">
-              <div className="flex items-center space-x-3">
-                <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
-                  <CubeIcon className="h-5 w-5 text-white" />
-                </div>
-                <h1 className="text-xl font-bold text-white">PM Textiles</h1>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="text-white/80 hover:text-white transition-colors">
+    <div className="min-h-screen app-surface">
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileNavOpen(false)}></div>
+          <div className="absolute inset-y-0 left-0 w-80 bg-white shadow-2xl">
+            <div className="flex items-center justify-between h-16 px-5 border-b border-slate-200">
+              <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Modules</h2>
+              <button onClick={() => setMobileNavOpen(false)} className="text-slate-500 hover:text-slate-700">
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-              {filteredNavigation.map((item) => {
-                const Icon = item.icon;
-                const IconSolid = item.iconSolid;
-                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700 shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent hover:border-blue-300'
-                    }`}
+            <div className="p-3 space-y-3 overflow-y-auto h-[calc(100%-64px)]">
+              {filteredSections.map((section) => (
+                <div key={section.title} className="rounded-lg border border-slate-200 bg-slate-50/80">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.title)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-600"
                   >
-                    {isActive ? (
-                      <IconSolid className="mr-3 h-5 w-5" />
-                    ) : (
-                      <Icon className="mr-3 h-5 w-5" />
-                    )}
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center space-x-3 px-2 py-2 rounded-lg hover:bg-white transition-colors">
-                <div className="h-9 w-9 rounded-full bg-blue-700 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                  {user?.fullName?.charAt(0)}
+                    <span>{section.title}</span>
+                    {expandedSections[section.title] ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
+                  </button>
+                  {expandedSections[section.title] && (
+                    <div className="space-y-1 px-2 pb-2">
+                      {section.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = isActiveRoute(item.href);
+                        return (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            onClick={() => setMobileNavOpen(false)}
+                            className={`group flex items-center px-2.5 py-2 rounded-lg text-sm font-medium ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-white'}`}
+                          >
+                            <Icon className="mr-3 h-5 w-5" />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-lg">
-          <div className="flex items-center h-16 px-6 bg-blue-800 border-b border-blue-900">
-            <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center mr-3 border border-white/20">
-              <CubeIcon className="h-5 w-5 text-white" />
-            </div>
-            <h1 className="text-lg font-bold text-white">PM Textiles ERP</h1>
-          </div>
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {filteredNavigation.map((item) => {
-              const Icon = item.icon;
-              const IconSolid = item.iconSolid;
-              const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700 shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent hover:border-blue-300'
-                  }`}
-                >
-                  {isActive ? (
-                    <IconSolid className="mr-3 h-5 w-5" />
-                  ) : (
-                    <Icon className="mr-3 h-5 w-5" />
-                  )}
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center space-x-3 px-2 py-2 rounded-lg hover:bg-white transition-colors cursor-pointer group shadow-sm">
-              <div className="h-10 w-10 rounded-full bg-blue-700 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                {user?.fullName?.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="lg:pl-64 flex flex-col flex-1">
-        {/* Top navigation */}
-        <div className="sticky top-0 z-10 flex h-16 bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex flex-col min-h-screen relative">
+        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+          <div className="h-16 max-w-7xl mx-auto w-full px-4 sm:px-6 flex items-center gap-3 relative">
           <button
-            className="px-4 text-gray-600 hover:text-blue-700 focus:outline-none lg:hidden transition-colors"
-            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden text-slate-600 hover:text-blue-700"
+            onClick={() => setMobileNavOpen(true)}
           >
             <Bars3Icon className="h-6 w-6" />
           </button>
-          
-          <div className="flex items-center justify-between flex-1 px-4">
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="search"
-                  placeholder="Search..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4 ml-4">
-              <NotificationBell />
-              
-              <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 shadow-sm">
-                <div className="h-8 w-8 rounded-full bg-blue-700 flex items-center justify-center text-white font-semibold text-xs shadow-sm">
-                  {user?.fullName?.charAt(0)}
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
-                  <p className="text-xs text-gray-600 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 border border-transparent hover:border-red-200"
-              >
-                <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
 
-        {/* Page content */}
-        <main className="flex-1 p-6 bg-gray-50">
-          <Outlet />
+          <button
+            onClick={() => handleQuickNavigate('/dashboard')}
+            className="inline-flex items-center rounded-xl bg-blue-700 text-white px-3 py-1.5 text-sm font-bold tracking-tight whitespace-nowrap"
+          >
+            PM Textiles ERP
+          </button>
+
+          <nav className="hidden lg:flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/80 p-1">
+            {topNavItems.map((item) => {
+              const isActive = isActiveRoute(item.href);
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => handleQuickNavigate(item.href)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-white hover:text-slate-900'}`}
+                >
+                  {item.name}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setModuleMenuOpen((prev) => !prev)}
+              className="hidden lg:inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
+            >
+              <Squares2X2Icon className="h-4 w-4 mr-1.5" />
+              Apps
+              <ChevronDownIcon className="h-4 w-4 ml-1" />
+            </button>
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="hidden md:inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
+            >
+              <CommandLineIcon className="h-4 w-4 mr-1.5" />
+              Ctrl/Cmd+K
+            </button>
+            <NotificationBell />
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:text-red-600 hover:bg-red-50"
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
+          </div>
+
+          {moduleMenuOpen && (
+            <div className="hidden lg:block absolute right-4 sm:right-6 top-16 w-[24rem]">
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-2xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold text-slate-900">Apps</h2>
+                  <button onClick={() => setModuleMenuOpen(false)} className="text-slate-500 hover:text-slate-700">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="relative mb-3">
+                  <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="search"
+                    value={appsSearchTerm}
+                    onChange={(e) => setAppsSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && appsSearchResults[0]) {
+                        handleQuickNavigate(appsSearchResults[0].href);
+                      }
+                    }}
+                    placeholder="Find app..."
+                    className="w-full rounded-lg border border-slate-300 bg-slate-50 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {appsSearchTerm.trim() ? (
+                  <div className="max-h-[55vh] overflow-y-auto space-y-1">
+                    {appsSearchResults.length > 0 ? (
+                      appsSearchResults.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = isActiveRoute(item.href);
+                        return (
+                          <button
+                            key={item.href}
+                            onClick={() => handleQuickNavigate(item.href)}
+                            className={`w-full text-left group flex items-center px-2.5 py-2 rounded-lg text-sm font-medium ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-100'}`}
+                          >
+                            <Icon className="mr-3 h-5 w-5" />
+                            {item.name}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <p className="px-2 py-3 text-sm text-slate-500">No matching apps</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+                  {moreSections.map((section) => (
+                    <div key={section.title} className="rounded-lg border border-slate-200 bg-slate-50/80">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(section.title)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                      >
+                        <span>{section.title}</span>
+                        {expandedSections[section.title] ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
+                      </button>
+                      {expandedSections[section.title] && (
+                        <div className="space-y-1 px-2 pb-2">
+                          {section.items.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = isActiveRoute(item.href);
+                            return (
+                              <button
+                                key={item.href}
+                                onClick={() => handleQuickNavigate(item.href)}
+                                className={`w-full text-left group flex items-center px-2.5 py-2 rounded-lg text-sm font-medium ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-white'}`}
+                              >
+                                <Icon className="mr-3 h-5 w-5" />
+                                {item.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6">
+          <div className="max-w-7xl mx-auto w-full">
+            <Outlet />
+          </div>
         </main>
       </div>
+
+      <CommandPalette
+        open={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        items={quickAccessItems}
+        onSelect={(item) => {
+          handleQuickNavigate(item.href);
+          setIsCommandPaletteOpen(false);
+        }}
+      />
     </div>
   );
 };

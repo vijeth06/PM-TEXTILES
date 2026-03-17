@@ -7,6 +7,7 @@ import { Card, CardBody, Button, Badge, Table, Thead, Tbody, Th, Td, Modal, Inpu
 import ExportButton from '../components/ExportButton';
 import BarcodeScanner from '../components/BarcodeScanner';
 import QRCodeGenerator from '../components/QRCodeGenerator';
+import PageShell from '../components/PageShell';
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -107,13 +108,12 @@ const Inventory = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-blue-800">Inventory Management</h1>
-          <p className="text-gray-600 mt-2 font-medium">Track and manage stock levels with FIFO methodology</p>
-        </div>
-        <div className="flex space-x-3">
+    <PageShell
+      title="Inventory Management"
+      description="Track stock, process receipts and issues, and respond to reorder alerts quickly."
+      badge="Supply Chain"
+      actions={(
+        <>
           <ExportButton 
             endpoint="/export/inventory/excel"
             filename="inventory"
@@ -128,8 +128,16 @@ const Inventory = () => {
             <ArrowDownIcon className="h-5 w-5 mr-2" />
             Receive Material
           </Button>
-        </div>
-      </div>
+        </>
+      )}
+      stats={[
+        { label: 'Items In View', value: String(inventory.length), helper: 'Current page listing' },
+        { label: 'Low Stock', value: String(inventory.filter((i) => Number(i.quantityAvailable) < (Number(i.reorderPoint) || 0)).length), helper: 'Below reorder point' },
+        { label: 'Alerts', value: String(alerts.length), helper: 'Needs attention' },
+        { label: 'Page', value: `${pagination.currentPage}/${pagination.totalPages}`, helper: 'Paginated inventory' }
+      ]}
+    >
+      <div className="space-y-6">
 
       {/* Barcode Scanner Modal */}
       {showScanner && (
@@ -360,7 +368,8 @@ const Inventory = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };
 
