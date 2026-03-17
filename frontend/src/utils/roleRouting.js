@@ -1,7 +1,7 @@
 export const getDefaultRouteForRole = (role) => {
   const routeMap = {
     production_manager: '/production',
-    qa_inspector: '/quality-checks',
+    qa_inspector: '/textile-production',
     store_manager: '/inventory',
     sales_manager: '/orders',
     accountant: '/finance',

@@ -418,17 +418,45 @@ const UserModal = ({ user, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const payload = {
+      username: (formData.username || '').trim(),
+      email: (formData.email || '').trim().toLowerCase(),
+      fullName: (formData.fullName || '').trim(),
+      role: formData.role,
+      permissions: Array.isArray(formData.permissions) ? formData.permissions : [],
+      isActive: Boolean(formData.isActive)
+    };
+
+    if (!payload.fullName || !payload.username || !payload.email || !payload.role) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    if (!user) {
+      const password = (formData.password || '').trim();
+      if (!password) {
+        toast.error('Password is required');
+        return;
+      }
+      if (password.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return;
+      }
+      payload.password = password;
+    }
+
     setLoading(true);
 
     console.log('Submitting user form with data:', formData);
 
     try {
       if (user) {
-        await usersAPI.updateUser(user._id, formData);
+        await usersAPI.updateUser(user._id, payload);
         toast.success('User updated successfully');
       } else {
         console.log('Creating new user...');
-        const response = await usersAPI.createUser(formData);
+        const response = await usersAPI.createUser(payload);
         console.log('User creation response:', response);
         toast.success('User created successfully');
       }

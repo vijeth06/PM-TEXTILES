@@ -12,7 +12,8 @@
     "install:all": "npm install && cd frontend && npm install",
     "build": "npm run build --prefix frontend",
     "postbuild": "npm run seed-users",
-    "seed-users": "node backend/seedUser.js"
+    "seed-users": "node backend/seedUser.js",
+    "seed-all": "node backend/seedAllData.js"
   },
   "keywords": [
     "textile",

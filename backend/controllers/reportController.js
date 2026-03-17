@@ -10,7 +10,7 @@ const Machine = require('../models/Machine');
 // @access  Private
 exports.getDailyProductionReport = async (req, res, next) => {
   try {
-    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    let { date = new Date().toISOString().split('T')[0] } = req.query;
     
     // Parse date properly
     const reportDate = new Date(date);
@@ -18,12 +18,36 @@ exports.getDailyProductionReport = async (req, res, next) => {
     const endOfDay = new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate(), 23, 59, 59, 999);
 
     // Get stages completed/in progress on this date
-    const stages = await ProductionStage.find({
+    let stages = await ProductionStage.find({
       $or: [
         { actualStartTime: { $gte: startOfDay, $lte: endOfDay } },
         { actualEndTime: { $gte: startOfDay, $lte: endOfDay } }
       ]
     }).populate('planId', 'planNo productDetails');
+
+    // If default date has no data, fall back to the latest production activity date.
+    if (!req.query.date && stages.length === 0) {
+      const latestStage = await ProductionStage.findOne({
+        $or: [{ actualStartTime: { $exists: true } }, { actualEndTime: { $exists: true } }]
+      })
+        .sort({ actualEndTime: -1, actualStartTime: -1 })
+        .select('actualEndTime actualStartTime');
+
+      if (latestStage) {
+        const effectiveDate = latestStage.actualEndTime || latestStage.actualStartTime;
+        date = new Date(effectiveDate).toISOString().split('T')[0];
+        const fallbackDate = new Date(date);
+        const fallbackStart = new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), fallbackDate.getDate(), 0, 0, 0, 0);
+        const fallbackEnd = new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), fallbackDate.getDate(), 23, 59, 59, 999);
+
+        stages = await ProductionStage.find({
+          $or: [
+            { actualStartTime: { $gte: fallbackStart, $lte: fallbackEnd } },
+            { actualEndTime: { $gte: fallbackStart, $lte: fallbackEnd } }
+          ]
+        }).populate('planId', 'planNo productDetails');
+      }
+    }
 
     // Aggregate by stage
     const stageWise = {};
@@ -61,7 +85,7 @@ exports.getDailyProductionReport = async (req, res, next) => {
 
     res.json({
       success: true,
-      reportDate: startOfDay.toISOString().split('T')[0],
+      reportDate: date,
       summary: {
         totalStages: stages.length,
         totalOutput,
@@ -263,7 +287,13 @@ exports.getOrderFulfillmentReport = async (req, res, next) => {
     res.json({
       success: true,
       period: { startDate, endDate },
-      metrics
+      metrics,
+      total: metrics.total,
+      delivered: metrics.delivered,
+      delayed: metrics.delayed,
+      pending: metrics.pending,
+      cancelled: metrics.cancelled,
+      otif: metrics.otif
     });
   } catch (error) {
     console.error('Order fulfillment report error:', error);

@@ -9,7 +9,7 @@ exports.validate = (req, res, next) => {
       success: false,
       message: 'Validation failed',
       errors: errors.array().map(err => ({
-        field: err.param,
+        field: err.path || err.param || err.location || 'unknown',
         message: err.msg
       }))
     });

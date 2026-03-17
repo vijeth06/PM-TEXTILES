@@ -25,7 +25,6 @@ const ReportsNew = lazy(() => import('./pages/ReportsNew'));
 const Finance = lazy(() => import('./pages/Finance'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AuditTrail = lazy(() => import('./pages/AuditTrail'));
-const Analytics = lazy(() => import('./pages/Analytics'));
 const LeadsManagement = lazy(() => import('./pages/LeadsManagement'));
 const EmployeeManagement = lazy(() => import('./pages/EmployeeManagement'));
 const DocumentManagement = lazy(() => import('./pages/DocumentManagement'));
@@ -34,8 +33,6 @@ const RoleBasedDashboard = lazy(() => import('./pages/RoleBasedDashboard'));
 const BudgetManagement = lazy(() => import('./pages/BudgetManagement'));
 const InvoiceManagement = lazy(() => import('./pages/InvoiceManagement'));
 const RFQManagement = lazy(() => import('./pages/RFQManagement'));
-const RecipeBOM = lazy(() => import('./pages/RecipeBOM'));
-const QualityChecks = lazy(() => import('./pages/QualityChecks'));
 const BarcodeRFID = lazy(() => import('./pages/BarcodeRFID'));
 
 // Loading fallback component
@@ -70,15 +67,12 @@ function App() {
     { path: '/finance/*', element: <Finance /> },
     { path: '/settings/*', element: <Settings /> },
     { path: '/audit/*', element: <AuditTrail /> },
-    { path: '/analytics/*', element: <Analytics /> },
     { path: '/leads/*', element: <LeadsManagement /> },
     { path: '/employees/*', element: <EmployeeManagement /> },
     { path: '/documents/*', element: <DocumentManagement /> },
     { path: '/budgets/*', element: <BudgetManagement /> },
     { path: '/invoices/*', element: <InvoiceManagement /> },
     { path: '/rfq/*', element: <RFQManagement /> },
-    { path: '/recipes/*', element: <RecipeBOM /> },
-    { path: '/quality-checks/*', element: <QualityChecks /> },
     { path: '/barcode/*', element: <BarcodeRFID /> },
     // Friendly aliases for direct access and old bookmarks.
     { path: '/document-management', element: <Navigate to="/documents" replace /> },

@@ -32,22 +32,35 @@ export default function InvoiceManagement() {
   const generateInvoice = async (order) => {
     try {
       const invoiceNo = `INV-${order.orderNo}-${Date.now()}`;
+      let orderItems = order.items || [];
+
+      if (orderItems.length === 0 && order?._id) {
+        const details = await ordersAPI.getOrder(order._id);
+        orderItems = details.data?.data?.items || [];
+      }
+
+      const formattedItems = orderItems.map(item => {
+        const qty = Number(item.orderedQuantity ?? item.quantity ?? 0);
+        const rate = Number(item.unitPrice ?? 0);
+        return [
+          item.productName || item.description || item.sku || 'Item',
+          `${qty} ${item.uom || ''}`.trim(),
+          `INR ${rate.toLocaleString('en-IN')}`,
+          `INR ${(qty * rate).toLocaleString('en-IN')}`
+        ];
+      });
+
       const items = [
         ['Item', 'Quantity', 'Rate', 'Amount'],
-        ...(order.items || []).map(item => [
-          item.productName,
-          item.orderedQuantity + ' ' + item.uom,
-          '₹' + item.unitPrice.toLocaleString(),
-          '₹' + (item.orderedQuantity * item.unitPrice).toLocaleString()
-        ])
+        ...(formattedItems.length > 0 ? formattedItems : [['No line items available', '-', '-', '-']])
       ];
 
       const summary = {
-        'Subtotal': '₹' + order.totalValue.toLocaleString(),
-        'Tax': '₹0',
-        'Total Amount': '₹' + order.totalValue.toLocaleString(),
-        'Advance Paid': '₹' + (order.advanceAmount || 0).toLocaleString(),
-        'Balance Due': '₹' + (order.balanceAmount || order.totalValue).toLocaleString()
+        'Subtotal': `INR ${Number(order.totalValue || 0).toLocaleString('en-IN')}`,
+        'Tax': 'INR 0',
+        'Total Amount': `INR ${Number(order.totalValue || 0).toLocaleString('en-IN')}`,
+        'Advance Paid': `INR ${Number(order.advanceAmount || 0).toLocaleString('en-IN')}`,
+        'Balance Due': `INR ${Number(order.balanceAmount || order.totalValue || 0).toLocaleString('en-IN')}`
       };
 
       const success = exportToPDF({

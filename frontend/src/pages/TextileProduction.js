@@ -33,11 +33,11 @@ export default function TextileProduction() {
           textileAPI.getLoomProductions()
         ]);
         if (productionsRes.status === 'fulfilled') {
-          const prods = productionsRes.value.data.data || [];
+          const prods = productionsRes.value.data.data || productionsRes.value.data || [];
           setLoomData(prods);
-          const running = prods.filter(l => l.status === 'running').length;
-          const idle = prods.filter(l => l.status === 'idle').length;
-          const breakdown = prods.filter(l => l.status === 'breakdown').length;
+          const running = prods.filter(l => ['running', 'in_progress'].includes(l.status)).length;
+          const idle = prods.filter(l => ['idle', 'completed'].includes(l.status)).length;
+          const breakdown = prods.filter(l => ['breakdown', 'stopped'].includes(l.status)).length;
           setLoomStats({ total: prods.length, running, idle, breakdown });
         }
       } else if (activeTab === 'dyeing') {
@@ -45,7 +45,7 @@ export default function TextileProduction() {
           textileAPI.getDyeingBatches()
         ]);
         if (batchesRes.status === 'fulfilled') {
-          const batches = batchesRes.value.data.data || [];
+          const batches = batchesRes.value.data.data || batchesRes.value.data || [];
           setDyeingData(batches);
           const inProgress = batches.filter(b => b.status === 'in_progress').length;
           const approved = batches.filter(b => b.status === 'approved' || b.status === 'completed').length;
@@ -54,7 +54,7 @@ export default function TextileProduction() {
         }
       } else if (activeTab === 'shadeMatching') {
         const res = await textileAPI.getColorLabRequests();
-        setShadeMatching(res.data.data || []);
+        setShadeMatching(res.data.data || res.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch textile data:', error);
@@ -68,7 +68,9 @@ export default function TextileProduction() {
     const statusConfig = {
       running: { bg: 'bg-green-100', text: 'text-green-800', label: 'Running' },
       idle: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Idle' },
+      completed: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Idle' },
       breakdown: { bg: 'bg-red-100', text: 'text-red-800', label: 'Breakdown' },
+      stopped: { bg: 'bg-red-100', text: 'text-red-800', label: 'Breakdown' },
       in_progress: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'In Progress' },
       shade_checking: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Shade Checking' },
       approved: { bg: 'bg-green-100', text: 'text-green-800', label: 'Approved' },

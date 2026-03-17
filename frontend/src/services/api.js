@@ -260,13 +260,71 @@ export const textileAPI = {
   recordBulkProduction: (id, data) => api.post(`/textile/color-lab/${id}/bulk-production`, data)
 };
 
-// Recipe/BOM API
-export const recipeAPI = {
-  getRecipes: (params) => api.get('/recipes', { params }),
-  getRecipe: (id) => api.get(`/recipes/${id}`),
-  createRecipe: (data) => api.post('/recipes', data),
-  updateRecipe: (id, data) => api.put(`/recipes/${id}`, data),
-  deleteRecipe: (id) => api.delete(`/recipes/${id}`)
+// RFQ API
+export const rfqAPI = {
+  getRFQs: (params) => api.get('/procurement/rfq', { params }),
+  getRFQ: (id) => api.get(`/procurement/rfq/${id}`),
+  createRFQ: (data) => api.post('/procurement/rfq', data),
+  updateRFQ: (id, data) => api.put(`/procurement/rfq/${id}`, data),
+  sendRFQ: (id) => api.post(`/procurement/rfq/${id}/send`),
+  submitQuotation: (id, data) => api.post(`/procurement/rfq/${id}/quotation`, data),
+  evaluateRFQ: (id, data) => api.post(`/procurement/rfq/${id}/evaluate`, data),
+  createPOFromRFQ: (id) => api.post(`/procurement/rfq/${id}/create-po`),
+  deleteRFQ: (id) => api.delete(`/procurement/rfq/${id}`)
+};
+
+// Employees API
+export const employeesAPI = {
+  getEmployees: (params) => api.get('/hr/employees', { params }),
+  getEmployee: (id) => api.get(`/hr/employees/${id}`),
+  createEmployee: (data) => api.post('/hr/employees', data),
+  updateEmployee: (id, data) => api.put(`/hr/employees/${id}`, data),
+  markAttendance: (id, data) => api.post(`/hr/employees/${id}/attendance`, data),
+  getAttendance: (id, params) => api.get(`/hr/employees/${id}/attendance`, { params }),
+  addTraining: (id, data) => api.post(`/hr/employees/${id}/training`, data),
+  addSkill: (id, data) => api.post(`/hr/employees/${id}/skills`, data),
+  terminateEmployee: (id, data) => api.put(`/hr/employees/${id}/terminate`, data),
+  deleteEmployee: (id) => api.delete(`/hr/employees/${id}`)
+};
+
+// Leads API
+export const leadsAPI = {
+  getLeads: (params) => api.get('/crm/leads', { params }),
+  getLead: (id) => api.get(`/crm/leads/${id}`),
+  createLead: (data) => api.post('/crm/leads', data),
+  updateLead: (id, data) => api.put(`/crm/leads/${id}`, data),
+  addFollowUp: (id, data) => api.post(`/crm/leads/${id}/followup`, data),
+  createQuotationFromLead: (id, data) => api.post(`/crm/leads/${id}/quotation`, data),
+  convertToCustomer: (id) => api.post(`/crm/leads/${id}/convert`),
+  markAsLost: (id, data) => api.put(`/crm/leads/${id}/lost`, data),
+  getLeadStats: () => api.get('/crm/leads/stats'),
+  deleteLead: (id) => api.delete(`/crm/leads/${id}`)
+};
+
+// Quotations API
+export const quotationsAPI = {
+  getQuotations: (params) => api.get('/sales/quotations', { params }),
+  getQuotation: (id) => api.get(`/sales/quotations/${id}`),
+  createQuotation: (data) => api.post('/sales/quotations', data),
+  updateQuotation: (id, data) => api.put(`/sales/quotations/${id}`, data),
+  sendQuotation: (id) => api.post(`/sales/quotations/${id}/send`),
+  acceptQuotation: (id) => api.put(`/sales/quotations/${id}/accept`),
+  createOrderFromQuotation: (id) => api.post(`/sales/quotations/${id}/create-order`),
+  reviseQuotation: (id) => api.post(`/sales/quotations/${id}/revise`),
+  deleteQuotation: (id) => api.delete(`/sales/quotations/${id}`)
+};
+
+// Documents API
+export const documentsAPI = {
+  getDocuments: (params) => api.get('/hr/documents', { params }),
+  getDocument: (id) => api.get(`/hr/documents/${id}`),
+  uploadDocument: (formData) => api.post('/hr/documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updateDocument: (id, data) => api.put(`/hr/documents/${id}`, data),
+  searchDocuments: (params) => api.get('/hr/documents/search', { params }),
+  approveDocument: (id, approvalId, data) => api.put(`/hr/documents/${id}/approval/${approvalId}`, data),
+  deleteDocument: (id) => api.delete(`/hr/documents/${id}`)
 };
 
 export { api };

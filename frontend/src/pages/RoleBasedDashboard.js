@@ -77,9 +77,9 @@ export default function RoleBasedDashboard() {
 
       setStats({
         production: {
-          today: metrics.production?.totalProduction || 0,
+          today: metrics.production?.totalProduction ?? metrics.production?.completedToday ?? 0,
           target: metrics.production?.targetQuantity || 0,
-          efficiency: metrics.production?.avgEfficiency || 0,
+          efficiency: metrics.production?.avgEfficiency ?? metrics.machines?.utilization ?? 0,
           activePlans: metrics.production?.activePlans || 0,
           completedPlans: metrics.production?.completedPlans || 0,
           looms: {
@@ -102,7 +102,7 @@ export default function RoleBasedDashboard() {
           totalValue: metrics.inventory?.totalValue || 0
         },
         orders: {
-          pending: orderRows.filter(o => o.status === 'pending').length || 0,
+          pending: (metrics.orders?.pending ?? orderRows.filter(o => ['pending', 'confirmed', 'in_production'].includes(o.status)).length) || 0,
           total: orders.total || orderRows.length || 0,
           inProduction: orderRows.filter(o => o.status === 'in_production').length || 0,
           completed: orderRows.filter(o => o.status === 'delivered').length || 0
@@ -440,7 +440,7 @@ export default function RoleBasedDashboard() {
 
   return (
     <PageShell
-      title={`Welcome, ${user?.name || 'User'}`}
+      title={`Welcome, ${user?.fullName || user?.name || user?.username || 'User'}`}
       description="Your role-aware operations dashboard with production, quality, inventory, and order intelligence."
       badge={`${(user?.role || 'user').replace(/_/g, ' ')} dashboard`}
       actions={[
@@ -451,14 +451,6 @@ export default function RoleBasedDashboard() {
         >
           <DocumentTextIcon className="h-4 w-4" />
           Reports
-        </button>,
-        <button
-          key="analytics"
-          onClick={() => navigate('/analytics')}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          <ChartBarIcon className="h-4 w-4" />
-          Analytics
         </button>,
         <button
           key="refresh"

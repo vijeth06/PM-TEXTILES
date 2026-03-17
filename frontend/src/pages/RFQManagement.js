@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { rfqAPI } from '../services/analyticsAPI';
+import { rfqAPI } from '../services/api';
 import { suppliersAPI } from '../services/api';
 import {
   PlusIcon, PaperAirplaneIcon, CheckIcon, TrashIcon, EyeIcon
@@ -32,6 +32,14 @@ export default function RFQManagement() {
   const [selectedRFQ, setSelectedRFQ] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [detailRFQ, setDetailRFQ] = useState(null);
+
+  const getPrimarySupplierName = (rfq) => {
+    if (rfq?.supplier?.name) return rfq.supplier.name;
+    if (Array.isArray(rfq?.suppliers) && rfq.suppliers.length > 0) {
+      return rfq.suppliers[0]?.supplierName || rfq.suppliers[0]?.supplierCode || '—';
+    }
+    return '—';
+  };
 
   useEffect(() => {
     fetchRFQs();
@@ -169,7 +177,7 @@ export default function RFQManagement() {
                 <tr key={rfq._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{rfq.rfqNumber}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{rfq.title}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{rfq.supplier?.name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{getPrimarySupplierName(rfq)}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">
                     {rfq.deadline ? new Date(rfq.deadline).toLocaleDateString() : '—'}
                   </td>
@@ -316,9 +324,9 @@ export default function RFQManagement() {
                 <tbody>
                   {(detailRFQ.items || []).map((item, i) => (
                     <tr key={i} className="border-b">
-                      <td className="p-2 border">{item.itemName}</td>
+                      <td className="p-2 border">{item.itemName || item.materialName || item.materialCode || 'Item'}</td>
                       <td className="p-2 border text-right">{item.quantity}</td>
-                      <td className="p-2 border text-right">{item.unitPrice ? `₹${item.unitPrice}` : '—'}</td>
+                      <td className="p-2 border text-right">{item.unitPrice || item.targetPrice ? `₹${(item.unitPrice || item.targetPrice)}` : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

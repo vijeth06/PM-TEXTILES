@@ -33,10 +33,40 @@ export default function BudgetManagement() {
     fetchBudgets();
   }, []);
 
+  const getDerivedTotals = (budget) => {
+    const allocations = Array.isArray(budget?.allocations) ? budget.allocations : [];
+    const allocatedFromAllocations = allocations.reduce((sum, a) => sum + Number(a?.allocatedAmount || 0), 0);
+    const spentFromAllocations = allocations.reduce((sum, a) => sum + Number(a?.spentAmount || 0), 0);
+
+    const storedAllocated = Number(budget?.totalAllocated || 0);
+    const storedSpent = Number(budget?.totalSpent || 0);
+
+    const effectiveAllocated = storedAllocated > 0 ? storedAllocated : allocatedFromAllocations;
+    const effectiveSpent = storedSpent > 0 ? storedSpent : spentFromAllocations;
+    const effectiveRemaining = effectiveAllocated - effectiveSpent;
+    const effectiveUtilization = effectiveAllocated > 0
+      ? Number(((effectiveSpent / effectiveAllocated) * 100).toFixed(2))
+      : 0;
+
+    return {
+      totalAllocated: effectiveAllocated,
+      totalSpent: effectiveSpent,
+      totalRemaining: effectiveRemaining,
+      overallUtilization: effectiveUtilization
+    };
+  };
+
+  const summaryTotals = budgets.reduce((acc, budget) => {
+    const totals = getDerivedTotals(budget);
+    acc.allocated += totals.totalAllocated;
+    acc.spent += totals.totalSpent;
+    return acc;
+  }, { allocated: 0, spent: 0 });
+
   const fetchBudgets = async () => {
     try {
       setLoading(true);
-      const response = await budgetsAPI.getBudgets({ fiscalYear: new Date().getFullYear().toString() });
+      const response = await budgetsAPI.getBudgets({ limit: 200 });
        setBudgets(response.data.data || []);
     } catch (error) {
       console.error('Error fetching budgets:', error);
@@ -113,7 +143,7 @@ export default function BudgetManagement() {
             <div className="ml-5 w-0 flex-1">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Allocated</dt>
               <dd className="text-2xl font-semibold text-gray-900">
-                ₹{(budgets.reduce((sum, b) => sum + (b.totalAllocated || 0), 0) / 100000).toFixed(2)}L
+                ₹{(summaryTotals.allocated / 100000).toFixed(2)}L
               </dd>
             </div>
           </div>
@@ -126,7 +156,7 @@ export default function BudgetManagement() {
             <div className="ml-5 w-0 flex-1">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Spent</dt>
               <dd className="text-2xl font-semibold text-gray-900">
-                ₹{(budgets.reduce((sum, b) => sum + (b.totalSpent || 0), 0) / 100000).toFixed(2)}L
+                ₹{(summaryTotals.spent / 100000).toFixed(2)}L
               </dd>
             </div>
           </div>
@@ -175,14 +205,15 @@ export default function BudgetManagement() {
               </Thead>
               <Tbody>
                 {budgets.map((budget) => {
-                  const utilization = budget.overallUtilization || 0;
+                  const totals = getDerivedTotals(budget);
+                  const utilization = totals.overallUtilization || 0;
                   return (
                     <tr key={budget._id} className="border-b hover:bg-gray-50">
                       <Td className="font-medium">{budget.budgetCode}</Td>
                       <Td>{budget.department}</Td>
-                      <Td>₹{budget.totalAllocated?.toLocaleString()}</Td>
-                      <Td>₹{budget.totalSpent?.toLocaleString()}</Td>
-                      <Td>₹{(budget.totalAllocated - budget.totalSpent)?.toLocaleString()}</Td>
+                      <Td>₹{totals.totalAllocated.toLocaleString()}</Td>
+                      <Td>₹{totals.totalSpent.toLocaleString()}</Td>
+                      <Td>₹{totals.totalRemaining.toLocaleString()}</Td>
                       <Td>
                         <div className="flex items-center space-x-2">
                           <div className="w-12 bg-gray-200 rounded-full h-2">

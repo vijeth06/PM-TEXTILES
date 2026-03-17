@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { employeesAPI } from '../services/analyticsAPI';
+import { employeesAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { 
   UserGroupIcon, 

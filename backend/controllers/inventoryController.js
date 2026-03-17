@@ -63,6 +63,7 @@ exports.getInventory = async (req, res, next) => {
       totalPages: Math.ceil(count / limit),
       currentPage: page,
       summary: totals,
+      totals,
       data: inventory
     });
   } catch (error) {

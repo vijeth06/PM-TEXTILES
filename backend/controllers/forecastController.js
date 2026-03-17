@@ -23,11 +23,11 @@ exports.createForecast = asyncHandler(async (req, res) => {
 // @route   GET /api/analytics/forecasts
 // @access  Private
 exports.getForecasts = asyncHandler(async (req, res) => {
-  const { forecastType, status, startDate, endDate } = req.query;
+  const { forecastType, type, status, startDate, endDate } = req.query;
   
   let query = {};
   
-  if (forecastType) query.forecastType = forecastType;
+  if (forecastType || type) query.forecastType = forecastType || type;
   if (status) query.status = status;
   if (startDate && endDate) {
     query['targetPeriod.startDate'] = { $gte: new Date(startDate), $lte: new Date(endDate) };

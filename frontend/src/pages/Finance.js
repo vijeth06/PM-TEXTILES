@@ -10,6 +10,7 @@ import {
   Modal, Input, Select, Textarea, LoadingSpinner 
 } from '../components/common';
 import PageShell from '../components/PageShell';
+import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 
 const Finance = () => {
   const [activeTab, setActiveTab] = useState('invoices');
@@ -919,6 +920,140 @@ const FinancialReportsTab = () => {
     { value: 'inventory_value', label: 'Inventory Valuation' }
   ];
 
+  const exportReportPDF = () => {
+    if (!reportData) {
+      toast.error('Generate a report first');
+      return;
+    }
+
+    if (reportData.type === 'pl') {
+      exportToPDF({
+        title: 'Finance Report - Profit & Loss Summary',
+        headers: ['Metric', 'Value'],
+        data: [
+          ['Total Order Revenue', `INR ${Number(reportData.totalRevenue || 0).toLocaleString('en-IN')}`],
+          ['Total Payments Received', `INR ${Number(reportData.totalPaymentsReceived || 0).toLocaleString('en-IN')}`],
+          ['Outstanding Receivables', `INR ${Number((reportData.totalRevenue || 0) - (reportData.totalPaymentsReceived || 0)).toLocaleString('en-IN')}`],
+          ['Orders', String(reportData.orders || 0)],
+          ['Payments', String(reportData.payments || 0)]
+        ],
+        summary: {
+          From: dateRange.from || 'N/A',
+          To: dateRange.to || 'N/A'
+        },
+        filename: `finance-pl-${new Date().toISOString().slice(0, 10)}.pdf`
+      });
+      return;
+    }
+
+    if (reportData.type === 'ar_aging') {
+      const rows = (reportData.unpaidOrders || []).map((order) => {
+        const total = Number(order.totalValue || 0);
+        const advance = Number(order.advanceAmount || 0);
+        const balance = total - advance;
+        return [
+          order.orderNo || '-',
+          order.customerId?.name || order.customerName || '-',
+          `INR ${total.toLocaleString('en-IN')}`,
+          `INR ${advance.toLocaleString('en-IN')}`,
+          `INR ${balance.toLocaleString('en-IN')}`,
+          String(order.paymentStatus || 'unpaid').toUpperCase()
+        ];
+      });
+
+      exportToPDF({
+        title: 'Finance Report - Accounts Receivable',
+        headers: ['Order No', 'Customer', 'Total Value', 'Advance', 'Balance Due', 'Status'],
+        data: rows.length ? rows : [['-', '-', 'INR 0', 'INR 0', 'INR 0', 'NO DATA']],
+        summary: {
+          'Unpaid Orders': String((reportData.unpaidOrders || []).length),
+          From: dateRange.from || 'N/A',
+          To: dateRange.to || 'N/A'
+        },
+        filename: `finance-ar-${new Date().toISOString().slice(0, 10)}.pdf`
+      });
+      return;
+    }
+
+    if (reportData.type === 'inventory_value') {
+      const rows = (reportData.totals || []).map((row) => [
+        row._id || 'Unknown',
+        `INR ${Number(row.totalValue || 0).toLocaleString('en-IN')}`,
+        Number(row.totalQty || 0).toLocaleString('en-IN')
+      ]);
+
+      exportToPDF({
+        title: 'Finance Report - Inventory Valuation',
+        headers: ['Type', 'Total Value', 'Total Qty'],
+        data: rows.length ? rows : [['Unknown', 'INR 0', '0']],
+        summary: {
+          'Bucket Count': String((reportData.totals || []).length),
+          Date: new Date().toLocaleDateString('en-IN')
+        },
+        filename: `finance-inventory-${new Date().toISOString().slice(0, 10)}.pdf`
+      });
+    }
+  };
+
+  const exportReportExcel = () => {
+    if (!reportData) {
+      toast.error('Generate a report first');
+      return;
+    }
+
+    if (reportData.type === 'pl') {
+      exportToExcel({
+        filename: `finance-pl-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheets: [{
+          name: 'P&L',
+          headers: ['Metric', 'Value'],
+          data: [
+            ['Total Order Revenue', Number(reportData.totalRevenue || 0)],
+            ['Total Payments Received', Number(reportData.totalPaymentsReceived || 0)],
+            ['Outstanding Receivables', Number((reportData.totalRevenue || 0) - (reportData.totalPaymentsReceived || 0))],
+            ['Orders', Number(reportData.orders || 0)],
+            ['Payments', Number(reportData.payments || 0)]
+          ]
+        }]
+      });
+      return;
+    }
+
+    if (reportData.type === 'ar_aging') {
+      exportToExcel({
+        filename: `finance-ar-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheets: [{
+          name: 'AR Aging',
+          headers: ['Order No', 'Customer', 'Total Value', 'Advance', 'Balance Due', 'Status'],
+          data: (reportData.unpaidOrders || []).map((order) => {
+            const total = Number(order.totalValue || 0);
+            const advance = Number(order.advanceAmount || 0);
+            return [
+              order.orderNo || '-',
+              order.customerId?.name || order.customerName || '-',
+              total,
+              advance,
+              total - advance,
+              String(order.paymentStatus || 'unpaid').toUpperCase()
+            ];
+          })
+        }]
+      });
+      return;
+    }
+
+    if (reportData.type === 'inventory_value') {
+      exportToExcel({
+        filename: `finance-inventory-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheets: [{
+          name: 'Inventory Valuation',
+          headers: ['Type', 'Total Value', 'Total Qty'],
+          data: (reportData.totals || []).map((row) => [row._id || 'Unknown', Number(row.totalValue || 0), Number(row.totalQty || 0)])
+        }]
+      });
+    }
+  };
+
   const generateReport = async () => {
     if (!reportType) {
       toast.error('Please select a report type');
@@ -988,6 +1123,12 @@ const FinancialReportsTab = () => {
               {loading ? 'Generating...' : 'Generate Report'}
             </Button>
           </div>
+          {reportData && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="outline" onClick={exportReportPDF}>Export PDF</Button>
+              <Button variant="outline" onClick={exportReportExcel}>Export Excel</Button>
+            </div>
+          )}
         </CardBody>
       </Card>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { documentsAPI } from '../services/analyticsAPI';
+import { documentsAPI } from '../services/api';
 import { 
   DocumentTextIcon, 
   MagnifyingGlassIcon,

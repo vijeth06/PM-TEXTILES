@@ -61,25 +61,34 @@ exports.calculateOEE = asyncHandler(async (req, res) => {
 
   // Get production stages for the machine
   const stages = await ProductionStage.find({
-    'assignedMachines.machineId': machineId,
-    createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    machineId,
+    $or: [
+      { actualStartTime: { $gte: new Date(startDate), $lte: new Date(endDate) } },
+      { actualEndTime: { $gte: new Date(startDate), $lte: new Date(endDate) } }
+    ]
   });
 
   // Calculate availability
   const totalTime = (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60); // hours
   const plannedProductionTime = totalTime * 0.9; // Assuming 90% is planned production time
-  const downtime = stages.reduce((sum, s) => sum + (s.downtime || 0), 0);
+  const downtime = stages.reduce((sum, s) => {
+    const stageDowntimeMinutes = Array.isArray(s.downtimeLog)
+      ? s.downtimeLog.reduce((dSum, d) => dSum + (d.duration || 0), 0)
+      : 0;
+    return sum + (stageDowntimeMinutes / 60);
+  }, 0);
   const operatingTime = plannedProductionTime - downtime;
   const availability = (operatingTime / plannedProductionTime) * 100;
 
   // Calculate performance
   const idealCycleTime = machine.capacity?.value || 100; // units per hour
-  const actualOutput = stages.reduce((sum, s) => sum + (s.actualQuantity || 0), 0);
+  const actualOutput = stages.reduce((sum, s) => sum + (s.outputQuantity || 0), 0);
   const performance = ((actualOutput / (operatingTime * idealCycleTime)) * 100);
 
   // Calculate quality
   const qualityChecks = await QualityCheck.find({
-    checkDate: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    checkedAt: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    machineId
   });
   const passedChecks = qualityChecks.filter(q => q.result === 'passed').length;
   const quality = qualityChecks.length > 0 ? (passedChecks / qualityChecks.length) * 100 : 100;
@@ -158,8 +167,8 @@ exports.calculateFPY = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.body;
 
   const qualityChecks = await QualityCheck.find({
-    checkDate: { $gte: new Date(startDate), $lte: new Date(endDate) },
-    type: 'final_product'
+    checkedAt: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    stage: 'final_inspection'
   });
 
   const firstPassUnits = qualityChecks.filter(q => q.result === 'passed').length;
@@ -198,40 +207,40 @@ exports.getKPIDashboard = asyncHandler(async (req, res) => {
   else if (period === 'monthly') startDate.setMonth(startDate.getMonth() - 6);
   else startDate.setFullYear(startDate.getFullYear() - 1);
 
-  const kpis = await KPI.find({
-    periodDate: { $gte: startDate }
-  }).sort({ periodDate: -1 });
+  const kpis = await KPI.find({ periodDate: { $gte: startDate } })
+    .sort({ periodDate: -1 })
+    .limit(300);
 
-  // Group by KPI type
-  const grouped = {};
-  kpis.forEach(kpi => {
-    if (!grouped[kpi.kpiType]) grouped[kpi.kpiType] = [];
-    grouped[kpi.kpiType].push(kpi);
-  });
+  const byType = {};
+  for (const kpi of kpis) {
+    if (!byType[kpi.kpiType]) byType[kpi.kpiType] = [];
+    byType[kpi.kpiType].push(kpi);
+  }
 
-  // Calculate trends
-  const trends = {};
-  Object.keys(grouped).forEach(type => {
-    const data = grouped[type];
-    if (data.length >= 2) {
-      const latest = data[0].actualValue;
-      const previous = data[1].actualValue;
-      const change = ((latest - previous) / previous) * 100;
-      
-      trends[type] = {
-        current: latest,
-        previous,
-        change: change.toFixed(2),
-        direction: change > 0 ? 'improving' : (change < 0 ? 'declining' : 'stable')
-      };
+  const summary = Object.entries(byType).map(([type, rows]) => {
+    const latest = rows[0];
+    const previous = rows[1];
+    const average = rows.reduce((sum, r) => sum + (r.actualValue || 0), 0) / rows.length;
+    let trend = 'stable';
+    if (previous) {
+      if ((latest.actualValue || 0) > (previous.actualValue || 0)) trend = 'improving';
+      else if ((latest.actualValue || 0) < (previous.actualValue || 0)) trend = 'declining';
     }
+
+    return {
+      type,
+      average: Number(average.toFixed(2)),
+      target: Number((latest?.targetValue || 0).toFixed(2)),
+      trend,
+      performanceStatus: latest?.performanceStatus || 'average'
+    };
   });
 
   res.json({
     success: true,
     data: {
-      kpis: grouped,
-      trends
+      summary,
+      kpis
     }
   });
 });

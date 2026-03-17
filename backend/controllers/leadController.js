@@ -269,13 +269,30 @@ exports.getLeadStats = asyncHandler(async (req, res) => {
     }
   ]);
 
-  const rate = conversionRate.length > 0
-    ? ((conversionRate[0].converted / conversionRate[0].total) * 100).toFixed(2)
+  const totalLeads = conversionRate[0]?.total || 0;
+  const convertedLeads = conversionRate[0]?.converted || 0;
+  const rate = totalLeads > 0
+    ? Number(((convertedLeads / totalLeads) * 100).toFixed(2))
     : 0;
+
+  const byStatusMap = stats.reduce((acc, row) => {
+    acc[row._id] = row.count;
+    return acc;
+  }, {});
+
+  const activeLeads =
+    (byStatusMap.new || 0) +
+    (byStatusMap.contacted || 0) +
+    (byStatusMap.qualified || 0) +
+    (byStatusMap.proposal_sent || 0) +
+    (byStatusMap.negotiation || 0);
 
   res.json({
     success: true,
     data: {
+      totalLeads,
+      convertedLeads,
+      activeLeads,
       byStatus: stats,
       bySource,
       conversionRate: rate

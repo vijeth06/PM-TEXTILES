@@ -26,6 +26,62 @@ exports.getDashboardMetrics = async (req, res, next) => {
       actualEndTime: { $gte: today, $lt: tomorrow }
     });
 
+    const productionTodayAgg = await ProductionStage.aggregate([
+      {
+        $match: {
+          status: 'completed',
+          actualEndTime: { $gte: today, $lt: tomorrow }
+        }
+      },
+      {
+        $project: {
+          outputQuantity: { $ifNull: ['$outputQuantity', 0] },
+          efficiency: {
+            $cond: [
+              { $gt: ['$inputQuantity', 0] },
+              { $multiply: [{ $divide: ['$outputQuantity', '$inputQuantity'] }, 100] },
+              null
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalProduction: { $sum: '$outputQuantity' },
+          avgEfficiency: { $avg: '$efficiency' }
+        }
+      }
+    ]);
+
+    let latestProductionAgg = [];
+    if (!productionTodayAgg.length) {
+      latestProductionAgg = await ProductionStage.aggregate([
+        { $match: { status: 'completed', actualEndTime: { $exists: true } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$actualEndTime' }
+            },
+            totalProduction: { $sum: { $ifNull: ['$outputQuantity', 0] } },
+            avgEfficiency: {
+              $avg: {
+                $cond: [
+                  { $gt: ['$inputQuantity', 0] },
+                  { $multiply: [{ $divide: ['$outputQuantity', '$inputQuantity'] }, 100] },
+                  null
+                ]
+              }
+            }
+          }
+        },
+        { $sort: { _id: -1 } },
+        { $limit: 1 }
+      ]);
+    }
+
+    const effectiveProduction = productionTodayAgg[0] || latestProductionAgg[0] || {};
+
     const delayedStages = await ProductionStage.countDocuments({
       status: { $in: ['pending', 'in_progress'] },
       scheduledEndTime: { $lt: new Date() }
@@ -93,6 +149,44 @@ exports.getDashboardMetrics = async (req, res, next) => {
       status: { $in: ['maintenance', 'breakdown'] }
     });
 
+    const machineUtilization = totalMachines > 0
+      ? Number(((operationalMachines / totalMachines) * 100).toFixed(2))
+      : 0;
+
+    const activeTargetAgg = await ProductionPlan.aggregate([
+      {
+        $match: {
+          status: { $in: ['in_progress', 'approved'] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalTarget: { $sum: { $ifNull: ['$productDetails.targetQuantity', 0] } }
+        }
+      }
+    ]);
+
+    const inventoryStockAgg = await Inventory.aggregate([
+      {
+        $match: {
+          status: { $in: ['available', 'reserved'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$itemType',
+          qty: { $sum: '$qtyAvailable' }
+        }
+      }
+    ]);
+    const yarnStock = inventoryStockAgg
+      .filter((row) => row._id === 'RawMaterial')
+      .reduce((sum, row) => sum + (row.qty || 0), 0);
+    const fabricStock = inventoryStockAgg
+      .filter((row) => row._id === 'FinishedGood' || row._id === 'SemiFinishedGood')
+      .reduce((sum, row) => sum + (row.qty || 0), 0);
+
     // Wastage metrics (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -133,11 +227,16 @@ exports.getDashboardMetrics = async (req, res, next) => {
         production: {
           activePlans: productionPlans,
           completedToday,
-          delayedStages
+          delayedStages,
+          totalProduction: effectiveProduction.totalProduction || 0,
+          avgEfficiency: effectiveProduction.avgEfficiency || machineUtilization,
+          targetQuantity: activeTargetAgg[0]?.totalTarget || 0
         },
         inventory: {
           totalValue: inventoryValue[0]?.totalValue || 0,
-          lowStockItems: lowStockItems[0]?.count || 0
+          lowStockItems: lowStockItems[0]?.count || 0,
+          yarnStock,
+          fabricStock
         },
         orders: {
           pending: pendingOrders,
@@ -147,7 +246,8 @@ exports.getDashboardMetrics = async (req, res, next) => {
         machines: {
           total: totalMachines,
           operational: operationalMachines,
-          underMaintenance: machinesUnderMaintenance
+          underMaintenance: machinesUnderMaintenance,
+          utilization: machineUtilization
         },
         wastage: {
           totalCost: wastageData[0]?.totalCost || 0,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { leadsAPI } from '../../services/analyticsAPI';
+import { leadsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { PlusIcon, PhoneIcon, EnvelopeIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 

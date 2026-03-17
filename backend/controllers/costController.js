@@ -108,9 +108,14 @@ exports.analyzeProductionCost = asyncHandler(async (req, res) => {
 exports.getCostBreakdown = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.query;
 
+  const rangeEnd = endDate ? new Date(endDate) : new Date();
+  const rangeStart = startDate
+    ? new Date(startDate)
+    : new Date(new Date(rangeEnd).setDate(rangeEnd.getDate() - 30));
+
   const analyses = await CostAnalysis.find({
-    'period.startDate': { $gte: new Date(startDate) },
-    'period.endDate': { $lte: new Date(endDate) }
+    'period.startDate': { $gte: rangeStart },
+    'period.endDate': { $lte: rangeEnd }
   });
 
   const breakdown = {
@@ -143,7 +148,8 @@ exports.getCostBreakdown = asyncHandler(async (req, res) => {
     data: {
       breakdown,
       percentages,
-      total
+      total,
+      totalCost: total
     }
   });
 });
@@ -154,9 +160,14 @@ exports.getCostBreakdown = asyncHandler(async (req, res) => {
 exports.getProfitabilityReport = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.query;
 
+  const rangeEnd = endDate ? new Date(endDate) : new Date();
+  const rangeStart = startDate
+    ? new Date(startDate)
+    : new Date(new Date(rangeEnd).setDate(rangeEnd.getDate() - 90));
+
   const analyses = await CostAnalysis.find({
-    'period.startDate': { $gte: new Date(startDate) },
-    'period.endDate': { $lte: new Date(endDate) },
+    'period.startDate': { $gte: rangeStart },
+    'period.endDate': { $lte: rangeEnd },
     revenue: { $gt: 0 }
   });
 
@@ -194,11 +205,20 @@ exports.getProfitabilityReport = asyncHandler(async (req, res) => {
     return acc;
   }, {});
 
+  const byType = Object.entries(byReference).map(([type, values]) => ({
+    type,
+    revenue: values.revenue,
+    cost: values.cost,
+    profit: values.profit,
+    count: values.count
+  }));
+
   res.json({
     success: true,
     data: {
       summary,
-      byReference
+      byReference,
+      byType
     }
   });
 });

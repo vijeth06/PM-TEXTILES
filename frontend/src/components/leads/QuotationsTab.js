@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { quotationsAPI } from '../../services/analyticsAPI';
+import { quotationsAPI } from '../../services/api';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
 export default function QuotationsTab() {

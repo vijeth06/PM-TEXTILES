@@ -27,6 +27,7 @@ export const exportToPDF = ({
 }) => {
   try {
     const doc = new jsPDF(orientation);
+    const cleanText = (value) => String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
     
     // Add title
     doc.setFontSize(18);
@@ -36,7 +37,7 @@ export const exportToPDF = ({
     // Add date
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+    doc.text(cleanText(`Generated: ${new Date().toLocaleString()}`), 14, 28);
     
     let startY = 35;
 
@@ -50,16 +51,19 @@ export const exportToPDF = ({
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       Object.entries(summary).forEach(([key, value], index) => {
-        doc.text(`${key}: ${value}`, 14, startY + (index * 5));
+        doc.text(cleanText(`${key}: ${value}`), 14, startY + (index * 5));
       });
       startY += Object.keys(summary).length * 5 + 5;
     }
 
+    const normalizedHeaders = (headers || []).map((h) => cleanText(h));
+    const normalizedData = (data || []).map((row) => row.map((cell) => cleanText(cell)));
+
     // Add table
     doc.autoTable({
       startY: startY,
-      head: [headers],
-      body: data,
+      head: [normalizedHeaders],
+      body: normalizedData,
       theme: 'grid',
       headStyles: {
         fillColor: [59, 130, 246], // Blue
@@ -69,7 +73,14 @@ export const exportToPDF = ({
       },
       styles: {
         fontSize: 9,
-        cellPadding: 3
+        cellPadding: 3,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 35 }
       },
       alternateRowStyles: {
         fillColor: [245, 247, 250]

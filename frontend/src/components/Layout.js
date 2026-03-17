@@ -22,8 +22,6 @@ import {
   DocumentTextIcon,
   UserGroupIcon,
   MegaphoneIcon,
-  BeakerIcon,
-  CheckCircleIcon,
   QrCodeIcon,
   ReceiptPercentIcon,
   ChevronDownIcon,
@@ -39,7 +37,6 @@ const navigationSections = [
       { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, keywords: ['home', 'overview', 'kpi'] },
       { name: 'Enhanced Dashboard', href: '/dashboard-enhanced', icon: HomeIcon, keywords: ['advanced dashboard', 'enhanced'] },
       { name: 'Classic Dashboard', href: '/dashboard-old', icon: HomeIcon, keywords: ['legacy dashboard', 'classic'] },
-      { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, permission: 'view_reports', keywords: ['trends', 'forecast', 'cost'] },
       { name: 'Reports', href: '/reports', icon: ChartBarIcon, permission: 'view_reports', keywords: ['summary', 'exports'] }
     ]
   },
@@ -49,8 +46,6 @@ const navigationSections = [
       { name: 'Textile Production', href: '/textile-production', icon: CubeIcon, keywords: ['loom', 'dyeing', 'fabric'] },
       { name: 'Production', href: '/production', icon: CubeIcon, permission: 'view_production', keywords: ['plan', 'batch'] },
       { name: 'Production Execution', href: '/production-execution', icon: PlayIcon, permission: 'manage_production', keywords: ['shopfloor', 'schedule'] },
-      { name: 'Recipe / BOM', href: '/recipes', icon: BeakerIcon, permission: 'view_production', keywords: ['formula', 'bom', 'recipe'] },
-      { name: 'Quality Checks', href: '/quality-checks', icon: CheckCircleIcon, permission: 'view_production', keywords: ['inspection', 'quality'] },
       { name: 'Barcode / RFID', href: '/barcode', icon: QrCodeIcon, permission: 'view_inventory', keywords: ['scan', 'tracking'] }
     ]
   },
@@ -84,7 +79,7 @@ const navigationSections = [
   }
 ];
 
-const PRIMARY_NAV_ORDER = ['/dashboard', '/production', '/inventory', '/orders', '/analytics'];
+const PRIMARY_NAV_ORDER = ['/dashboard', '/production', '/inventory', '/orders', '/reports'];
 
 const Layout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -163,7 +158,7 @@ const Layout = () => {
 
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
-      const isK = event.key.toLowerCase() === 'k';
+      const isK = String(event?.key || '').toLowerCase() === 'k';
       if ((event.ctrlKey || event.metaKey) && isK) {
         event.preventDefault();
         setIsCommandPaletteOpen(true);

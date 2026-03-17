@@ -213,14 +213,16 @@ const ProductionExecution = () => {
           ) : (
             <Table>
               <Thead>
-                <Th>Plan</Th>
-                <Th>Stage</Th>
-                <Th>Machine</Th>
-                <Th>Input</Th>
-                <Th>Output</Th>
-                <Th>Status</Th>
-                <Th>Progress</Th>
-                <Th>Actions</Th>
+                <tr>
+                  <Th>Plan</Th>
+                  <Th>Stage</Th>
+                  <Th>Machine</Th>
+                  <Th>Input</Th>
+                  <Th>Output</Th>
+                  <Th>Status</Th>
+                  <Th>Progress</Th>
+                  <Th>Actions</Th>
+                </tr>
               </Thead>
               <Tbody>
                 {stages.map((stage) => (
