@@ -156,7 +156,6 @@ budgetSchema.pre('save', function(next) {
   next();
 });
 
-budgetSchema.index({ budgetCode: 1 });
 budgetSchema.index({ department: 1, fiscalYear: 1 });
 
 module.exports = mongoose.model('Budget', budgetSchema);

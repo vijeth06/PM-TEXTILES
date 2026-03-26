@@ -182,7 +182,7 @@ app.get('/', (req, res) => {
     res.json({
       message: 'PM Textiles - Production, Inventory, and Order Management System',
       version: '3.0.0',
-      documentation: '/api/health',
+      documentation: '/api-docs',
       features: {
         analytics: ['Forecasting', 'KPIs', 'Cost Analysis'],
         automation: ['Auto-Reorder', 'Smart Scheduling'],
@@ -220,10 +220,10 @@ const startServer = async () => {
   await connectDB();
 
   // Initialize Redis caching (optional - app works without it)
-  const redis = initRedis();
+  initRedis();
   
   // Initialize Email service (optional - app works without it)
-  initEmailService();
+  const emailReady = initEmailService();
 
   // Initialize WebSocket
   io = initializeSocket(server);
@@ -245,6 +245,7 @@ const startServer = async () => {
   });
 
   server.listen(PORT, () => {
+    const redisReady = cacheService.isAvailable();
     logger.info(`Server started on port ${PORT}`);
     console.log(`
   ╔════════════════════════════════════════════════════════════╗
@@ -256,8 +257,8 @@ const startServer = async () => {
   ║   Environment:  ${process.env.NODE_ENV || 'development'}                              ║
   ║   Database:     ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}                            ║
   ║   WebSocket:    Enabled ✅                                    ║
-  ║   Email:        ${process.env.EMAIL_USER ? 'Configured ✅' : 'Not configured ⚠️'}                         ║
-  ║   Redis Cache:  ${redis ? 'Enabled ✅' : 'Disabled (optional) ⚠️'}                      ║
+  ║   Email:        ${emailReady ? 'Configured ✅' : 'Disabled (optional) ⚠️'}                        ║
+  ║   Redis Cache:  ${redisReady ? 'Enabled ✅' : 'Unavailable (optional) ⚠️'}                  ║
   ║   File Upload:  Enabled ✅                                    ║
   ║   Security:     Helmet, CORS, Rate Limiting ✅               ║
   ╚════════════════════════════════════════════════════════════╝

@@ -82,9 +82,9 @@ This will:
 
 ### Option 2: Manual Setup
 
-#### Step 1: Install Backend Dependencies
+#### Step 1: Install Root Dependencies
 ```bash
-cd backend
+cd PM-Textiles-ERP
 npm install
 ```
 
@@ -125,20 +125,18 @@ mongod
 
 #### Step 5: Start Servers
 ```bash
-# Terminal 1: Start Backend
-cd backend
-npm start
+# Terminal 1: Start Backend from project root
+npm run dev
 
 # Terminal 2: Start Frontend
-cd frontend
-npm start
+npm run client
 ```
 
 ### 🌐 Access the Application
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5001
-- **Health Check**: http://localhost:5001/api/health
+- **Backend API**: http://localhost:5055
+- **Health Check**: http://localhost:5055/api/health
 
 ### 🔐 Default Login
 ```

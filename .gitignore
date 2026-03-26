@@ -50,3 +50,6 @@ frontend/test-results/
 # Seed files
 backend/seedAllData.js
 backend/seedUser.js
+
+# Runtime uploads
+backend/uploads/

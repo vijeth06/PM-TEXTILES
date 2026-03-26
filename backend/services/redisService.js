@@ -2,6 +2,8 @@ const Redis = require('ioredis');
 
 // Redis client configuration
 let redisClient = null;
+let redisAvailable = false;
+let hasLoggedConnectionFailure = false;
 
 const initRedis = () => {
   try {
@@ -9,32 +11,43 @@ const initRedis = () => {
       host: process.env.REDIS_HOST || 'localhost',
       port: process.env.REDIS_PORT || 6379,
       password: process.env.REDIS_PASSWORD || undefined,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      maxRetriesPerRequest: 3,
+      // Disable aggressive reconnect loops when Redis is optional.
+      retryStrategy: () => null,
+      maxRetriesPerRequest: 1,
       enableReadyCheck: true,
       lazyConnect: true
     });
 
     redisClient.on('connect', () => {
+      redisAvailable = true;
+      hasLoggedConnectionFailure = false;
       console.log('✅ Redis connected successfully');
     });
 
     redisClient.on('error', (err) => {
-      console.warn('⚠️ Redis connection error (running without cache):', err.message);
-      redisClient = null; // Disable Redis if connection fails
+      redisAvailable = false;
+      if (!hasLoggedConnectionFailure) {
+        console.warn('⚠️ Redis not available (running without cache):', err.message);
+        hasLoggedConnectionFailure = true;
+      }
     });
 
     redisClient.on('ready', () => {
+      redisAvailable = true;
       console.log('✅ Redis is ready');
+    });
+
+    redisClient.on('end', () => {
+      redisAvailable = false;
     });
 
     // Attempt to connect
     redisClient.connect().catch((err) => {
-      console.warn('⚠️ Redis not available (running without cache):', err.message);
-      redisClient = null;
+      redisAvailable = false;
+      if (!hasLoggedConnectionFailure) {
+        console.warn('⚠️ Redis not available (running without cache):', err.message);
+        hasLoggedConnectionFailure = true;
+      }
     });
 
     return redisClient;
@@ -195,13 +208,19 @@ const cacheService = {
     if (redisClient) {
       await redisClient.quit();
       redisClient = null;
+      redisAvailable = false;
     }
   },
 
   /**
    * Get Redis client instance
    */
-  getClient: () => redisClient
+  getClient: () => redisClient,
+
+  /**
+   * True when Redis connection is healthy and ready.
+   */
+  isAvailable: () => redisAvailable
 };
 
 module.exports = { initRedis, cacheService };

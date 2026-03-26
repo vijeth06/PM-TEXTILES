@@ -172,7 +172,6 @@ recipeSchema.pre('save', function(next) {
   next();
 });
 
-recipeSchema.index({ recipeCode: 1 });
 recipeSchema.index({ productCode: 1, version: 1 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);
